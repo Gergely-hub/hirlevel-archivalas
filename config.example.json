@@ -1,0 +1,23 @@
+{
+  "check_interval_minutes": 15,
+  "start_minimized_to_tray": true,
+  "appearance_mode": "Dark",
+  "sync_max_per_source": 40,
+  "import_max_per_source": 500,
+  "backup_auto": false,
+  "backup_interval": "weekly",
+  "backup_target": "local",
+  "backup_folder": "",
+  "backup_keep": 8,
+  "accounts": [
+    {
+      "id": "fo",
+      "label": "Fő fiók",
+      "email": "SAJAT@gmail.com",
+      "app_password": "xxxx xxxx xxxx xxxx",
+      "provider": "gmail",
+      "imap_host": "imap.gmail.com",
+      "imap_port": 993
+    }
+  ]
+}
