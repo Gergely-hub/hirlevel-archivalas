@@ -58,11 +58,10 @@ Source: "..\LICENSE.md"; DestDir: "{app}"; Flags: ignoreversion
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
 Name: "{group}\{#MyAppName} (tálca)"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--tray"; WorkingDir: "{app}"
 Name: "{group}\OLVASD (útmutató)"; Filename: "{app}\OLVASD.md"; WorkingDir: "{app}"; Flags: createonlyiffileexists
-Name: "{group}\---"; Filename: ""; Flags: createonlyiffileexists
-Name: "{group}\Jogi dokumentumok\Adatkezelési tájékoztató (GDPR)"; Filename: "{app}\ADATKEZELESI_TAJEKOZTATO.md"; WorkingDir: "{app}"; Flags: createonlyiffileexists
-Name: "{group}\Jogi dokumentumok\Biztonság és adatvédelem"; Filename: "{app}\BIZTONSAG_ES_ADATVEDELEM.md"; WorkingDir: "{app}"; Flags: createonlyiffileexists
-Name: "{group}\Jogi dokumentumok\Felhasználási feltételek"; Filename: "{app}\FELHASZNALASI_FELTETELEK.md"; WorkingDir: "{app}"; Flags: createonlyiffileexists
-Name: "{group}\Jogi dokumentumok\MIT-licenc"; Filename: "{app}\LICENSE.md"; WorkingDir: "{app}"; Flags: createonlyiffileexists
+Name: "{group}\Adatkezelési tájékoztató (GDPR)"; Filename: "{app}\ADATKEZELESI_TAJEKOZTATO.md"; WorkingDir: "{app}"; Flags: createonlyiffileexists
+Name: "{group}\Biztonság és adatvédelem"; Filename: "{app}\BIZTONSAG_ES_ADATVEDELEM.md"; WorkingDir: "{app}"; Flags: createonlyiffileexists
+Name: "{group}\Felhasználási feltételek"; Filename: "{app}\FELHASZNALASI_FELTETELEK.md"; WorkingDir: "{app}"; Flags: createonlyiffileexists
+Name: "{group}\MIT-licenc"; Filename: "{app}\LICENSE.md"; WorkingDir: "{app}"; Flags: createonlyiffileexists
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 Name: "{userstartup}\{#MyAppNameAscii}"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--tray"; WorkingDir: "{app}"; Tasks: autostart
