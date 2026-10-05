@@ -10,7 +10,7 @@ import webbrowser
 from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog, messagebox
-from typing import Optional
+from typing import Any, Optional
 
 import customtkinter as ctk
 
@@ -22,13 +22,17 @@ from app.backup import (
     restore_backup_zip,
     run_scheduled_backup,
 )
-from app.ctk_menu import CTkMenuBar
+from app.ctk_menu import CTkMenuBar, set_menu_theme
 from app.db import (
     Message,
     Source,
     add_source,
+    count_messages,
     count_messages_by_source,
     count_unread_by_source,
+    delete_message,
+    delete_messages_for_source,
+    delete_source,
     export_filename_stem,
     find_source_by_email,
     get_message,
@@ -51,6 +55,18 @@ from app.export_rich import export_message_to_docx, export_message_to_pdf
 from app.gmail_fetch import fetch_all_accounts, refresh_one_message_html, _is_stub_message
 from app.paths import CONFIG_PATH
 from app.startup import disable_autostart, enable_autostart, is_autostart_enabled
+from app.themes import (
+    apply_ctk_theme,
+    menu_theme_from_palette,
+    resolve_theme_id,
+    theme_menu_items,
+)
+from app.tray import run_tray
+
+try:
+    from app.build_info import BUILD_STAMP
+except ImportError:
+    BUILD_STAMP = "dev"
 
 # Középső lista: egyszerre max ennyi buborék, utána „Több betöltése”
 PAGE_SIZE = 20
@@ -58,6 +74,8 @@ PREVIEW_LINES = 6
 PREVIEW_CHARS = 320
 PREVIEW_LINE_MAX = 88
 LIST_FETCH_LIMIT = 200
+# Google Drive mentés a kódban megmarad; menü/súgóban rejtve
+SHOW_GDRIVE_UI = False
 URL_RE = re.compile(
     r"(https?://[^\s<>\"'\]\)]+)|(www\.[^\s<>\"'\]\)]+)",
     re.IGNORECASE,
@@ -68,12 +86,27 @@ class App(ctk.CTk):
     def __init__(self, start_in_tray: bool = False) -> None:
         super().__init__()
         init_db()
+        self._start_in_tray = bool(start_in_tray)
+        self._window_prepared = False
+        self._startup_sync_job: Optional[str] = None
+        self._resume_sync_job: Optional[str] = None
 
         self.title("Hírlevél követő")
-        self.geometry("1280x760")
-        self.minsize(1040, 620)
-        # CTk címsáv-szín beállítás után is maximálva maradjon
-        self.after(80, self._maximize)
+        from app.app_icon import apply_window_icon
+        from app.win_chrome import primary_work_area
+
+        wx, wy, ww, wh = primary_work_area()
+        self.geometry(f"{ww}x{wh}+{wx}+{wy}")
+        self.minsize(min(800, ww), min(500, wh))
+        # Mindig rejtve építünk — ne villanjon fekete keret / félkész UI
+        try:
+            self.withdraw()
+        except Exception:
+            pass
+        if not self._start_in_tray:
+            self.after(0, self._prepare_main_window)
+            self.after(50, lambda: apply_window_icon(self))
+            self.after(500, lambda: apply_window_icon(self))
 
         self._selected: Optional[Source] = None
         self._syncing = False
@@ -105,14 +138,25 @@ class App(ctk.CTk):
         self._source_stat_labels: dict[int, ctk.CTkLabel] = {}
         self._source_name_labels: dict[int, ctk.CTkLabel] = {}
         self._source_badge_job: Optional[str] = None
+        self._themed_text_labels: list[ctk.CTkLabel] = []
+        self._themed_muted_labels: list[ctk.CTkLabel] = []
+        self._filter_radios: list[ctk.CTkRadioButton] = []
+        self._themed_checkboxes: list[ctk.CTkCheckBox] = []
+        self._themed_entries: list[ctk.CTkEntry] = []
 
         cfg0 = load_config()
-        appearance = str(cfg0.get("appearance_mode") or "Dark")
-        if appearance not in ("Light", "Dark"):
-            appearance = "Dark"
-        ctk.set_appearance_mode(appearance)
-        ctk.set_default_color_theme("blue")
-        self._appearance_var = tk.StringVar(value=appearance)
+        theme_id = resolve_theme_id(
+            str(cfg0.get("ui_theme") or ""),
+            appearance_fallback=str(cfg0.get("appearance_mode") or "Dark"),
+        )
+        self._palette = apply_ctk_theme(theme_id)
+        set_menu_theme(menu_theme_from_palette(self._palette))
+        self._theme_var = tk.StringVar(value=theme_id)
+        # Régi menü / config kompatibilitás
+        self._appearance_var = tk.StringVar(value=self._palette.appearance)
+        self._chrome_hidden = False
+        self._win_maximized = False
+        self._restore_geometry = self.geometry()
         self._backup_auto_var = tk.BooleanVar(value=bool(cfg0.get("backup_auto")))
         self._backup_freq_var = tk.StringVar(
             value=normalize_backup_interval(cfg0.get("backup_interval"))
@@ -129,22 +173,21 @@ class App(ctk.CTk):
         self._schedule_poll()
         self._schedule_backup_check()
         self.bind("<Configure>", self._on_root_configure)
+        self.after(300, lambda: self._set_status(f"Build: {BUILD_STAMP}", force=True))
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         # CTk címsáv után is maradjon a tálcára zárás
         self.after(400, lambda: self.protocol("WM_DELETE_WINDOW", self._on_close))
-        # Tray ikon előre, hogy az X azonnal működjön
-        self.after(600, self._ensure_tray)
-
-        if start_in_tray:
-            self.after(200, self._hide_to_tray)
-        else:
-            # Indításkor csak könnyű inkrementális szinkron (nem full import)
-            self.after(1500, self._sync_async)
+        # Tray ikon előre, hogy rejtett indulásnál se villanjon az ablak
+        self.after(80, self._ensure_tray)
+        # Indításkor csak később szinkronizálunk, amikor a UI már összeállt
+        self._startup_sync_job = self.after(2800, self._run_startup_sync)
+        # Alvás / fedél fel → automatikus levélfrissítés (Windows WM_POWERBROADCAST)
+        self.after(1500, self._bind_system_resume_watch)
 
     def _build(self) -> None:
         self.grid_columnconfigure(1, weight=1)
-        self.grid_columnconfigure(2, weight=2)
+        self.grid_columnconfigure(2, weight=2, minsize=300)
         self.grid_rowconfigure(2, weight=1)
 
         cfg = load_config()
@@ -161,15 +204,18 @@ class App(ctk.CTk):
         self._build_menubar()
 
         # Keresősáv — teljes szélesség
-        top_bar = ctk.CTkFrame(self, corner_radius=0, fg_color=("gray90", "gray18"))
+        top_bar = ctk.CTkFrame(self, corner_radius=0, fg_color=self._palette.left_bg)
         top_bar.grid(row=1, column=0, columnspan=3, sticky="ew")
         top_bar.grid_columnconfigure(1, weight=1)
+        self._top_bar = top_bar
 
-        ctk.CTkLabel(
+        self._search_title_label = ctk.CTkLabel(
             top_bar,
             text="Keresés",
             font=ctk.CTkFont(family="Candara", size=14, weight="bold"),
-        ).grid(row=0, column=0, padx=(16, 8), pady=12)
+        )
+        self._search_title_label.grid(row=0, column=0, padx=(16, 8), pady=12)
+        self._themed_text_labels.append(self._search_title_label)
 
         self.search = ctk.CTkEntry(
             top_bar,
@@ -178,13 +224,17 @@ class App(ctk.CTk):
         )
         self.search.grid(row=0, column=1, sticky="ew", padx=(0, 8), pady=12)
         self.search.bind("<Return>", lambda _e: self._run_search())
+        self._themed_entries.append(self.search)
 
-        ctk.CTkButton(top_bar, text="Keres", width=90, command=self._run_search).grid(
-            row=0, column=2, padx=(0, 8), pady=12
+        self._chrome_buttons: list[ctk.CTkButton] = []
+        self.search_btn = ctk.CTkButton(
+            top_bar, text="Keres", width=80, command=self._run_search
         )
-        ctk.CTkButton(top_bar, text="Törlés", width=70, command=self._clear_search).grid(
-            row=0, column=3, padx=(0, 8), pady=12
+        self.search_btn.grid(row=0, column=2, padx=(0, 8), pady=12)
+        self.clear_search_btn = ctk.CTkButton(
+            top_bar, text="Törlés", width=80, command=self._clear_search
         )
+        self.clear_search_btn.grid(row=0, column=3, padx=(0, 8), pady=12)
 
         find_nav = ctk.CTkFrame(top_bar, fg_color="transparent")
         find_nav.grid(row=0, column=4, padx=(0, 8), pady=12)
@@ -193,7 +243,7 @@ class App(ctk.CTk):
         )
         self.find_prev_btn.pack(side="left", padx=(0, 4))
         self.find_label = ctk.CTkLabel(
-            find_nav, text="", width=90, anchor="center", text_color=("gray30", "gray70")
+            find_nav, text="", width=90, anchor="center"
         )
         self.find_label.pack(side="left", padx=2)
         self.find_next_btn = ctk.CTkButton(
@@ -201,8 +251,18 @@ class App(ctk.CTk):
         )
         self.find_next_btn.pack(side="left", padx=(4, 0))
 
-        ctk.CTkButton(top_bar, text="Most ellenőriz", width=120, command=self._sync_async).grid(
-            row=0, column=5, padx=(0, 8), pady=12
+        self.sync_now_btn = ctk.CTkButton(
+            top_bar, text="Most ellenőriz", width=140, command=self._sync_async
+        )
+        self.sync_now_btn.grid(row=0, column=5, padx=(0, 8), pady=12)
+        self._chrome_buttons.extend(
+            [
+                self.search_btn,
+                self.clear_search_btn,
+                self.find_prev_btn,
+                self.find_next_btn,
+                self.sync_now_btn,
+            ]
         )
 
         self.search_only_selected_var = tk.BooleanVar(value=False)
@@ -210,47 +270,54 @@ class App(ctk.CTk):
             top_bar,
             text="Csak a kiválasztottban",
             variable=self.search_only_selected_var,
+            width=180,
         )
         self.search_scope_cb.grid(row=0, column=6, padx=(0, 16), pady=12)
+        self._themed_checkboxes.append(self.search_scope_cb)
 
         # --- Bal: hírlevelek ---
-        left = ctk.CTkFrame(self, width=250, corner_radius=0, fg_color=("gray88", "gray16"))
+        left = ctk.CTkFrame(self, width=280, corner_radius=0, fg_color=self._palette.left_bg)
         left.grid(row=2, column=0, sticky="nsw")
         left.grid_propagate(False)
         self._left_pane = left
 
-        ctk.CTkLabel(
+        self._left_title_label = ctk.CTkLabel(
             left,
             text="Hírlevelek",
             font=self._title_font(18),
-        ).pack(anchor="w", padx=16, pady=(18, 6))
-        ctk.CTkLabel(
+        )
+        self._left_title_label.pack(anchor="w", padx=16, pady=(18, 6))
+        self._themed_text_labels.append(self._left_title_label)
+        self._left_hint_label = ctk.CTkLabel(
             left,
             text="Válassz egy küldőt",
             font=self._body_font(12),
-            text_color=("gray45", "gray65"),
-        ).pack(anchor="w", padx=16, pady=(0, 8))
+        )
+        self._left_hint_label.pack(anchor="w", padx=16, pady=(0, 8))
+        self._themed_muted_labels.append(self._left_hint_label)
 
         self.source_list = ctk.CTkScrollableFrame(
-            left, width=230, fg_color=("gray88", "gray16")
+            left, width=260, fg_color=self._palette.left_bg
         )
         self.source_list.pack(fill="both", expand=True, padx=8, pady=4)
         self._configure_fast_scroll(self.source_list, step=48)
 
-        ctk.CTkButton(
+        self._add_source_btn = ctk.CTkButton(
             left, text="+ Új hírlevél", height=36, command=self._add_newsletter
-        ).pack(fill="x", padx=12, pady=(8, 4))
-        ctk.CTkButton(
+        )
+        self._add_source_btn.pack(fill="x", padx=12, pady=(8, 4))
+        self._hidden_sources_btn = ctk.CTkButton(
             left,
             text="Elrejtettek…",
             height=30,
             fg_color=("gray80", "gray28"),
             command=self._manage_hidden_sources,
-        ).pack(fill="x", padx=12, pady=(0, 12))
+        )
+        self._hidden_sources_btn.pack(fill="x", padx=12, pady=(0, 12))
 
         # --- Közép: levélbuborékok ---
-        mid = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
-        mid.grid(row=2, column=1, sticky="nsew", padx=(8, 4), pady=10)
+        mid = ctk.CTkFrame(self, corner_radius=0, fg_color=self._palette.mid_bg)
+        mid.grid(row=2, column=1, sticky="nsew", padx=0, pady=0)
         mid.grid_columnconfigure(0, weight=1)
         mid.grid_rowconfigure(2, weight=1)
         self._mid_pane = mid
@@ -262,40 +329,78 @@ class App(ctk.CTk):
         self.header = ctk.CTkLabel(
             header_row,
             text="Hírlevél követő",
-            font=self._title_font(22),
+            font=self._title_font(18),
             anchor="w",
         )
-        self.header.grid(row=0, column=0, sticky="w")
+        self.header.grid(row=0, column=0, sticky="ew", padx=(0, 8), pady=(0, 4))
 
         header_actions = ctk.CTkFrame(header_row, fg_color="transparent")
-        header_actions.grid(row=0, column=1, sticky="e")
+        header_actions.grid(row=1, column=0, sticky="ew", pady=(0, 2))
+        header_actions.grid_columnconfigure(0, weight=1)
+        header_actions.grid_columnconfigure(1, weight=1)
+
+        actions_top = ctk.CTkFrame(header_actions, fg_color="transparent")
+        actions_top.grid(row=0, column=0, columnspan=2, sticky="w")
+        actions_bottom = ctk.CTkFrame(header_actions, fg_color="transparent")
+        actions_bottom.grid(row=1, column=0, columnspan=2, sticky="w", pady=(4, 0))
+
         self.rename_btn = ctk.CTkButton(
-            header_actions, text="Átnevezés", width=90, command=self._rename_selected
+            actions_top, text="Átnevezés", width=100, command=self._rename_selected
         )
-        self.rename_btn.pack(side="left", padx=(6, 0))
+        self.rename_btn.pack(side="left")
         self.tag_btn = ctk.CTkButton(
-            header_actions, text="Címke", width=70, command=self._tag_selected
+            actions_top, text="Címke", width=80, command=self._tag_selected
         )
         self.tag_btn.pack(side="left", padx=(6, 0))
         self.hide_btn = ctk.CTkButton(
-            header_actions, text="Elrejtés", width=80, command=self._hide_selected
+            actions_top, text="Elrejtés", width=90, command=self._hide_selected
         )
         self.hide_btn.pack(side="left", padx=(6, 0))
+        self.delete_source_btn = ctk.CTkButton(
+            actions_top,
+            text="Törlés…",
+            width=90,
+            fg_color="#C45C5C",
+            hover_color="#A84848",
+            text_color="#FFFFFF",
+            command=self._delete_selected_source,
+        )
+        self.delete_source_btn.pack(side="left", padx=(6, 0))
         self.mark_read_btn = ctk.CTkButton(
-            header_actions,
+            actions_bottom,
             text="Olvasottnak jelöl",
-            width=130,
+            width=150,
             command=self._mark_selected_all_read,
         )
-        self.mark_read_btn.pack(side="left", padx=(6, 0))
+        self.mark_read_btn.pack(side="left")
+        self.delete_msgs_btn = ctk.CTkButton(
+            actions_bottom,
+            text="Helyi levelek törlése…",
+            width=170,
+            fg_color="#8B3A3A",
+            hover_color="#6E2E2E",
+            text_color="#FFFFFF",
+            command=self._delete_selected_source_messages,
+        )
+        self.delete_msgs_btn.pack(side="left", padx=(6, 0))
         self.export_btn = ctk.CTkButton(
-            header_actions, text="Word lista", width=100, command=self._export
+            actions_bottom, text="Word lista", width=110, command=self._export
         )
         self.export_btn.pack(side="left", padx=(6, 0))
         self.export_pdf_btn = ctk.CTkButton(
-            header_actions, text="PDF lista", width=90, command=self._export_list_pdf
+            actions_bottom, text="PDF lista", width=100, command=self._export_list_pdf
         )
         self.export_pdf_btn.pack(side="left", padx=(6, 0))
+        self._chrome_buttons.extend(
+            [
+                self.rename_btn,
+                self.tag_btn,
+                self.hide_btn,
+                self.mark_read_btn,
+                self.export_btn,
+                self.export_pdf_btn,
+            ]
+        )
 
         filter_row = ctk.CTkFrame(mid, fg_color="transparent")
         filter_row.grid(row=1, column=0, sticky="ew", pady=(0, 6))
@@ -305,100 +410,124 @@ class App(ctk.CTk):
             ("unread", "Olvasatlan"),
             ("starred", "★ Kedvenc"),
         ):
-            ctk.CTkRadioButton(
+            rb = ctk.CTkRadioButton(
                 filter_row,
                 text=label,
                 variable=self._filter_var,
                 value=value,
                 command=self._apply_list_filter,
-                width=90,
-            ).pack(side="left", padx=(0, 10))
-        ctk.CTkLabel(filter_row, text="Dátumtól:", font=self._body_font(12)).pack(
-            side="left", padx=(8, 4)
+                width=110,
+            )
+            rb.pack(side="left", padx=(0, 10))
+            self._filter_radios.append(rb)
+        self._date_filter_label = ctk.CTkLabel(
+            filter_row, text="Dátumtól:", font=self._body_font(12)
         )
+        self._date_filter_label.pack(side="left", padx=(8, 4))
+        self._themed_text_labels.append(self._date_filter_label)
         self.since_entry = ctk.CTkEntry(
             filter_row, width=110, height=28, placeholder_text="ÉÉÉÉ-HH-NN"
         )
         self.since_entry.pack(side="left", padx=(0, 6))
         self.since_entry.bind("<Return>", lambda _e: self._apply_list_filter())
-        ctk.CTkButton(
+        self._themed_entries.append(self.since_entry)
+        self.filter_btn = ctk.CTkButton(
             filter_row, text="Szűr", width=56, height=28, command=self._apply_list_filter
-        ).pack(side="left")
+        )
+        self.filter_btn.pack(side="left")
+        self._chrome_buttons.append(self.filter_btn)
 
         # Folyamatos görgetés a betöltött buborékokon; 20 után „Több betöltése”
-        self.msg_frame = ctk.CTkScrollableFrame(
-            mid, fg_color=("gray96", "gray14")
-        )
+        self.msg_frame = ctk.CTkScrollableFrame(mid, fg_color=self._palette.mid_bg)
         self.msg_frame.grid(row=2, column=0, sticky="nsew")
         self._configure_msg_scroll(self.msg_frame)
 
-        self.status = ctk.CTkLabel(mid, text="", anchor="w", text_color=("gray40", "gray70"))
+        self.status = ctk.CTkLabel(
+            mid, text="", anchor="w", text_color=self._palette.muted
+        )
         self.status.grid(row=3, column=0, sticky="ew", pady=(8, 0))
 
         # --- Jobb: HTML olvasó ---
-        reader_wrap = ctk.CTkFrame(self, corner_radius=0, fg_color=("gray92", "gray14"))
-        reader_wrap.grid(row=2, column=2, sticky="nsew", padx=(4, 10), pady=10)
+        reader_wrap = ctk.CTkFrame(
+            self, corner_radius=0, fg_color=self._palette.left_bg
+        )
+        reader_wrap.grid(row=2, column=2, sticky="nsew", padx=0, pady=0)
         reader_wrap.grid_columnconfigure(0, weight=1)
         reader_wrap.grid_rowconfigure(1, weight=1)
         self._reader_pane = reader_wrap
 
         reader_head = ctk.CTkFrame(reader_wrap, fg_color="transparent")
-        reader_head.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 6))
+        reader_head.grid(row=0, column=0, sticky="ew", padx=8, pady=(8, 4))
         reader_head.grid_columnconfigure(1, weight=1)
 
+        reader_title_row = ctk.CTkFrame(reader_head, fg_color="transparent")
+        reader_title_row.grid(row=0, column=0, sticky="ew", pady=(0, 4))
+        reader_title_row.grid_columnconfigure(1, weight=1)
+
         self.back_to_list_btn = ctk.CTkButton(
-            reader_head,
+            reader_title_row,
             text="← Lista",
             width=80,
             height=28,
             command=self._back_to_list,
         )
-        self.back_to_list_btn.grid(row=0, column=0, sticky="w", padx=(0, 8))
+        self.back_to_list_btn.grid(row=0, column=0, sticky="w", padx=(0, 6))
         self.back_to_list_btn.grid_remove()
 
         self.reader_title = ctk.CTkLabel(
-            reader_head,
+            reader_title_row,
             text="Olvasó",
             font=self._title_font(16),
             anchor="w",
         )
-        self.reader_title.grid(row=0, column=1, sticky="w")
+        self.reader_title.grid(row=0, column=0, columnspan=2, sticky="ew")
+
+        reader_actions = ctk.CTkFrame(reader_head, fg_color="transparent")
+        reader_actions.grid(row=1, column=0, sticky="ew")
 
         self.browser_btn = ctk.CTkButton(
-            reader_head,
-            text="Böngészőben",
-            width=110,
+            reader_actions,
+            text="Böngésző",
+            width=100,
             height=28,
             command=self._open_reader_in_browser,
         )
-        self.browser_btn.grid(row=0, column=2, sticky="e", padx=(8, 0))
+        self.browser_btn.pack(side="left", padx=(0, 4))
         self.links_btn = ctk.CTkButton(
-            reader_head,
+            reader_actions,
             text="Linkek",
-            width=70,
+            width=80,
             height=28,
             command=self._show_reader_links,
         )
-        self.links_btn.grid(row=0, column=3, sticky="e", padx=(8, 0))
+        self.links_btn.pack(side="left", padx=(0, 4))
         self.reader_word_btn = ctk.CTkButton(
-            reader_head,
+            reader_actions,
             text="Word",
-            width=64,
+            width=70,
             height=28,
             command=lambda: self._export_current("docx"),
         )
-        self.reader_word_btn.grid(row=0, column=4, sticky="e", padx=(8, 0))
+        self.reader_word_btn.pack(side="left", padx=(0, 4))
         self.reader_pdf_btn = ctk.CTkButton(
-            reader_head,
+            reader_actions,
             text="PDF",
-            width=56,
+            width=60,
             height=28,
             command=lambda: self._export_current("pdf"),
         )
-        self.reader_pdf_btn.grid(row=0, column=5, sticky="e", padx=(8, 0))
-
+        self.reader_pdf_btn.pack(side="left")
+        self._chrome_buttons.extend(
+            [
+                self.back_to_list_btn,
+                self.browser_btn,
+                self.links_btn,
+                self.reader_word_btn,
+                self.reader_pdf_btn,
+            ]
+        )
         self.reader_host = ctk.CTkFrame(
-            reader_wrap, fg_color=("gray96", "gray12"), corner_radius=12
+            reader_wrap, fg_color=self._palette.surface, corner_radius=12
         )
         self.reader_host.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
         self.reader_host.grid_columnconfigure(0, weight=1)
@@ -406,6 +535,7 @@ class App(ctk.CTk):
         self._init_html_reader()
         self._show_reader_placeholder()
         self._show_list_empty_state("welcome")
+        self._apply_chrome_from_palette()
 
     def _title_font(self, size: int = 18) -> ctk.CTkFont:
         for family in ("Candara", "Calibri", "Segoe UI Semibold", "Segoe UI"):
@@ -444,23 +574,26 @@ class App(ctk.CTk):
         reader = self._reader_pane
         if not self._compact:
             left.grid(row=2, column=0, sticky="nsw")
-            mid.grid(row=2, column=1, sticky="nsew", padx=(8, 4), pady=10)
-            reader.grid(row=2, column=2, sticky="nsew", padx=(4, 10), pady=10)
+            mid.grid(row=2, column=1, sticky="nsew", padx=0, pady=0)
+            reader.grid(row=2, column=2, sticky="nsew", padx=0, pady=0)
             self.grid_columnconfigure(1, weight=1)
             self.grid_columnconfigure(2, weight=2)
             self.back_to_list_btn.grid_remove()
+            self.reader_title.grid(row=0, column=0, columnspan=2, sticky="ew")
             return
         left.grid(row=2, column=0, sticky="nsw")
         self.grid_columnconfigure(1, weight=1)
         self.grid_columnconfigure(2, weight=0)
         if self._reader_focus and self._selected_msg_id is not None:
             mid.grid_remove()
-            reader.grid(row=2, column=1, sticky="nsew", padx=(8, 10), pady=10)
+            reader.grid(row=2, column=1, sticky="nsew", padx=0, pady=0)
             self.back_to_list_btn.grid()
+            self.reader_title.grid(row=0, column=1, sticky="ew")
         else:
             reader.grid_remove()
-            mid.grid(row=2, column=1, sticky="nsew", padx=(8, 10), pady=10)
+            mid.grid(row=2, column=1, sticky="nsew", padx=0, pady=0)
             self.back_to_list_btn.grid_remove()
+            self.reader_title.grid(row=0, column=0, columnspan=2, sticky="ew")
 
     def _back_to_list(self) -> None:
         self._reader_focus = False
@@ -469,12 +602,14 @@ class App(ctk.CTk):
     def _show_list_empty_state(self, kind: str = "welcome") -> None:
         for w in self.msg_frame.winfo_children():
             w.destroy()
-        box = ctk.CTkFrame(self.msg_frame, fg_color=("gray90", "gray20"), corner_radius=16)
+        box = ctk.CTkFrame(
+            self.msg_frame, fg_color=self._palette.bubble, corner_radius=16
+        )
         box.pack(fill="x", padx=16, pady=24)
         if kind == "welcome":
             title = "Kezdés három lépésben"
             body = (
-                "1. Levelezés → Levelező fiókok… (IMAP)\n"
+                "1. Levelezés → Levelező fiókok… (IMAP: Gmail, Outlook, stb.)\n"
                 "2. Bal oldalon válassz vagy adj hozzá hírlevelet\n"
                 "3. A középső listából nyisd meg a levelet az olvasóban"
             )
@@ -488,22 +623,24 @@ class App(ctk.CTk):
             title = "Nincs találat"
             body = "Próbálj másik keresőszót."
         ctk.CTkLabel(
-            box, text=title, font=self._title_font(17), anchor="w"
+            box, text=title, font=self._title_font(17), anchor="w", text_color=self._palette.text
         ).pack(anchor="w", padx=18, pady=(16, 6))
         ctk.CTkLabel(
             box,
             text=body,
             font=self._body_font(13),
-            text_color=("gray40", "gray70"),
+            text_color=self._palette.muted,
             justify="left",
             anchor="w",
         ).pack(anchor="w", padx=18, pady=(0, 16))
+        self._tint_scrollable(self.msg_frame, self._palette.mid_bg)
 
     def _reader_placeholder_html(self) -> str:
         bg, fg = self._reader_theme_colors()
+        muted = self._pal_pick(self._palette.muted)
         return (
             f"<!DOCTYPE html><html><head><meta charset='utf-8'>"
-            f"<style>body{{background:{bg};color:#888;font-family:Calibri,Candara,Segoe UI,sans-serif;"
+            f"<style>body{{background:{bg};color:{muted};font-family:Calibri,Candara,Segoe UI,sans-serif;"
             f"padding:28px;line-height:1.5}}</style></head><body>"
             f"<h2 style='color:{fg};font-family:Candara,Calibri,sans-serif;font-weight:600;margin:0 0 8px'>Olvasópanel</h2>"
             f"<p>Itt jelenik meg a hírlevél HTML nézete — mint a levelezőben.</p>"
@@ -533,8 +670,8 @@ class App(ctk.CTk):
         bg, fg = self._reader_theme_colors()
         return (
             f"<!DOCTYPE html><html><head><meta charset='utf-8'>"
-            f"<style>body{{background:{bg};color:#888;font-family:'Segoe UI',sans-serif;"
-            f"padding:28px}}</style></head><body>"
+            f"<style>body{{background:{bg};color:{self._pal_pick(self._palette.muted)};"
+            f"font-family:'Segoe UI',sans-serif;padding:28px}}</style></head><body>"
             f"<p style='color:{fg}'>Betöltés…</p></body></html>"
         )
 
@@ -613,6 +750,9 @@ class App(ctk.CTk):
 
     def _reader_theme_colors(self) -> tuple[str, str]:
         """Üres/betöltő nézet — követi az app témát."""
+        pal = getattr(self, "_palette", None)
+        if pal is not None:
+            return pal.reader_bg, pal.reader_fg
         if ctk.get_appearance_mode() == "Dark":
             return "#1a1d23", "#e8eaed"
         return "#f4f6f8", "#1a1a1a"
@@ -1115,6 +1255,26 @@ class App(ctk.CTk):
         except Exception:
             pass
 
+    def _fix_scrollregion(self, scrollable: ctk.CTkScrollableFrame) -> None:
+        canvas = scrollable._parent_canvas  # noqa: SLF001
+        try:
+            scrollable.update_idletasks()
+            bbox = canvas.bbox("all")
+            canvas.configure(scrollregion=bbox if bbox else (0, 0, 0, 0))
+        except Exception:
+            pass
+
+    def _pointer_inside(self, widget: Any, x_root: int, y_root: int) -> bool:
+        try:
+            w = widget.winfo_containing(x_root, y_root)
+            while w is not None:
+                if w == widget:
+                    return True
+                w = w.master
+        except Exception:
+            return False
+        return False
+
     def _build_menubar(self) -> None:
         # Natív Windows menü helyett CTk sáv — követi a Light/Dark témát
         self.configure(menu="")
@@ -1189,18 +1349,12 @@ class App(ctk.CTk):
                         "items": [
                             {
                                 "kind": "radio",
-                                "label": "Világos",
-                                "variable": self._appearance_var,
-                                "value": "Light",
-                                "command": self._apply_appearance,
-                            },
-                            {
-                                "kind": "radio",
-                                "label": "Sötét",
-                                "variable": self._appearance_var,
-                                "value": "Dark",
-                                "command": self._apply_appearance,
-                            },
+                                "label": label,
+                                "variable": self._theme_var,
+                                "value": tid,
+                                "command": self._apply_theme,
+                            }
+                            for tid, label in theme_menu_items()
                         ],
                     },
                     {
@@ -1216,26 +1370,32 @@ class App(ctk.CTk):
                         "variable": self._backup_auto_var,
                         "command": self._apply_backup_auto,
                     },
-                    {
-                        "kind": "submenu",
-                        "label": "Mentés helye",
-                        "items": [
+                    *(
+                        [
                             {
-                                "kind": "radio",
-                                "label": "Gépre (mappa)",
-                                "variable": self._backup_target_var,
-                                "value": "local",
-                                "command": self._apply_backup_target,
+                                "kind": "submenu",
+                                "label": "Mentés helye",
+                                "items": [
+                                    {
+                                        "kind": "radio",
+                                        "label": "Gépre (mappa)",
+                                        "variable": self._backup_target_var,
+                                        "value": "local",
+                                        "command": self._apply_backup_target,
+                                    },
+                                    {
+                                        "kind": "radio",
+                                        "label": "Google Drive",
+                                        "variable": self._backup_target_var,
+                                        "value": "gdrive",
+                                        "command": self._apply_backup_target,
+                                    },
+                                ],
                             },
-                            {
-                                "kind": "radio",
-                                "label": "Google Drive",
-                                "variable": self._backup_target_var,
-                                "value": "gdrive",
-                                "command": self._apply_backup_target,
-                            },
-                        ],
-                    },
+                        ]
+                        if SHOW_GDRIVE_UI
+                        else []
+                    ),
                     {
                         "kind": "submenu",
                         "label": "Mentés gyakorisága",
@@ -1268,21 +1428,27 @@ class App(ctk.CTk):
                         "label": "Mentési mappa (gépre)…",
                         "command": self._choose_backup_folder,
                     },
-                    {
-                        "kind": "command",
-                        "label": "Google Drive előkészítés…",
-                        "command": self._gdrive_setup_wizard,
-                    },
-                    {
-                        "kind": "command",
-                        "label": "Google Drive bejelentkezés…",
-                        "command": self._gdrive_login,
-                    },
-                    {
-                        "kind": "command",
-                        "label": "Google Drive kijelentkezés",
-                        "command": self._gdrive_logout,
-                    },
+                    *(
+                        [
+                            {
+                                "kind": "command",
+                                "label": "Google Drive előkészítés…",
+                                "command": self._gdrive_setup_wizard,
+                            },
+                            {
+                                "kind": "command",
+                                "label": "Google Drive bejelentkezés…",
+                                "command": self._gdrive_login,
+                            },
+                            {
+                                "kind": "command",
+                                "label": "Google Drive kijelentkezés",
+                                "command": self._gdrive_logout,
+                            },
+                        ]
+                        if SHOW_GDRIVE_UI
+                        else []
+                    ),
                 ],
             ),
             (
@@ -1298,15 +1464,27 @@ class App(ctk.CTk):
                         "label": "Mentés és biztonság…",
                         "command": lambda: self._show_help("mentes"),
                     },
-                    {
-                        "kind": "command",
-                        "label": "Google Drive mentés…",
-                        "command": lambda: self._show_help("gdrive"),
-                    },
+                    *(
+                        [
+                            {
+                                "kind": "command",
+                                "label": "Google Drive mentés…",
+                                "command": lambda: self._show_help("gdrive"),
+                            },
+                        ]
+                        if SHOW_GDRIVE_UI
+                        else []
+                    ),
                     {
                         "kind": "command",
                         "label": "Adatkezelés…",
                         "command": lambda: self._show_help("adat"),
+                    },
+                    {"kind": "separator"},
+                    {
+                        "kind": "command",
+                        "label": "Jogi Dokumentumok Központ…",
+                        "command": self._show_legal_center,
                     },
                     {"kind": "separator"},
                     {
@@ -1317,8 +1495,16 @@ class App(ctk.CTk):
                 ],
             ),
         ]
-        bar = CTkMenuBar(self, menus)
+        # Menüsor + ─ □ ✕ (címsor nincs — Win32 strip)
+        bar = CTkMenuBar(
+            self,
+            menus,
+            on_minimize=self._minimize_window,
+            on_toggle_max=self._toggle_maximize,
+            on_close=self._on_close,
+        )
         bar.grid(row=0, column=0, columnspan=3, sticky="ew")
+        bar.apply_theme(menu_theme_from_palette(self._palette))
         self._menubar = bar
 
     def _show_help(self, which: str) -> None:
@@ -1350,6 +1536,11 @@ class App(ctk.CTk):
         box.configure(state="disabled")
         ctk.CTkButton(win, text="Bezárás", width=100, command=win.destroy).pack(pady=(0, 12))
         win.after(50, win.lift)
+
+    def _show_legal_center(self) -> None:
+        """Jogi Dokumentumok Központ megnyitása (tabbed dialógus ablak)."""
+        from app.legal_center import show_legal_center
+        show_legal_center(self)
 
     def _backup_initial_dir(self) -> str:
         cfg = load_config()
@@ -1659,11 +1850,18 @@ class App(ctk.CTk):
             from app.gdrive_backup import is_connected
 
             if not is_connected():
-                messagebox.showinfo(
-                    "Automata mentés",
-                    "Google Drive célhoz előbb jelentkezz be:\n"
-                    "Beállítások → Google Drive bejelentkezés…",
-                )
+                if SHOW_GDRIVE_UI:
+                    messagebox.showinfo(
+                        "Automata mentés",
+                        "Google Drive célhoz előbb jelentkezz be:\n"
+                        "Beállítások → Google Drive bejelentkezés…",
+                    )
+                else:
+                    messagebox.showinfo(
+                        "Automata mentés",
+                        "A Google Drive mentés nincs beállítva.\n"
+                        "Válassz mentési mappát: Beállítások → Mentési mappa (gépre)…",
+                    )
                 self._backup_auto_var.set(False)
                 return
         cfg["backup_auto"] = enabled
@@ -1750,26 +1948,183 @@ class App(ctk.CTk):
         self._schedule_poll()
         self._set_status(f"Frissítés: {minutes} percenként", force=True)
 
-    def _apply_appearance(self) -> None:
-        mode = str(self._appearance_var.get())
-        if mode not in ("Light", "Dark"):
-            mode = "Dark"
-            self._appearance_var.set(mode)
-        ctk.set_appearance_mode(mode)
-        cfg = load_config()
-        cfg["appearance_mode"] = mode
-        save_config(cfg)
-        # Kényszerített frissítés (néhány CTk widget nem mindig kapja el azonnal)
+    def _style_chrome_buttons(self) -> None:
+        """Fejléc / olvasó gombok a paletta primary színére (ne ragadjon be a peónia)."""
+        pal = self._palette
+        fg = self._pal_pick(pal.primary)
+        hover = self._pal_pick(pal.primary_hover)
+        txt = self._pal_pick(pal.btn_text)
+        for btn in getattr(self, "_chrome_buttons", []):
+            try:
+                btn.configure(fg_color=fg, hover_color=hover, text_color=txt)
+            except Exception:
+                pass
+        for btn in (
+            getattr(self, "_add_source_btn", None),
+            getattr(self, "_hidden_sources_btn", None),
+        ):
+            if btn is None:
+                continue
+            try:
+                if btn is self._hidden_sources_btn:
+                    btn.configure(
+                        fg_color=self._pal_pick(pal.source_row),
+                        hover_color=self._pal_pick(pal.source_hover),
+                        text_color=self._pal_pick(pal.text),
+                    )
+                else:
+                    btn.configure(fg_color=fg, hover_color=hover, text_color=txt)
+            except Exception:
+                pass
+
+    def _pal_pick(self, pair: tuple[str, str]) -> str:
+        """Konkrét szín a paletta appearance szerint (ne CTk mód-fél keveredjen)."""
+        appearance = getattr(self._palette, "appearance", None) or ctk.get_appearance_mode()
+        return pair[1] if appearance == "Dark" else pair[0]
+
+    def _style_themed_controls(self) -> None:
+        """Szöveg / rádió / jelölőnégyzet — téma váltáskor is olvasható maradjon."""
+        pal = self._palette
+        text = self._pal_pick(pal.text)
+        muted = self._pal_pick(pal.muted)
+        accent = self._pal_pick(pal.accent)
+        accent_h = self._pal_pick(pal.accent_hover)
+        surface = self._pal_pick(pal.surface)
+        btn_text = self._pal_pick(pal.btn_text)
+        for lbl in self._themed_text_labels:
+            try:
+                lbl.configure(text_color=text)
+            except Exception:
+                pass
+        for lbl in self._themed_muted_labels:
+            try:
+                lbl.configure(text_color=muted)
+            except Exception:
+                pass
+        for rb in self._filter_radios:
+            try:
+                rb.configure(
+                    text_color=text,
+                    fg_color=accent,
+                    hover_color=accent_h,
+                    border_color=muted,
+                )
+            except Exception:
+                pass
+        for cb in self._themed_checkboxes:
+            try:
+                cb.configure(
+                    text_color=text,
+                    fg_color=accent,
+                    hover_color=accent_h,
+                    border_color=muted,
+                    checkmark_color=btn_text,
+                )
+            except Exception:
+                pass
+        for ent in self._themed_entries:
+            try:
+                ent.configure(
+                    text_color=text,
+                    placeholder_text_color=muted,
+                    fg_color=surface,
+                    border_color=muted,
+                )
+            except Exception:
+                pass
+
+    def _apply_chrome_from_palette(self) -> None:
+        """Ablak / oszlopok / sávok — konkrét hex, egy téma, ne keverék."""
+        pal = self._palette
         try:
-            self._menubar.configure(fg_color=("gray85", "gray20"))
+            self.configure(fg_color=self._pal_pick(pal.window_bg))
         except Exception:
             pass
-        label = "világos" if mode == "Light" else "sötét"
-        self._set_status(f"Téma: {label}", force=True)
-        if self._selected_msg_id is not None:
-            self.after(80, lambda: self._show_message_in_reader(self._selected_msg_id))  # type: ignore[arg-type]
+        for attr, color in (
+            ("_top_bar", pal.left_bg),
+            ("_left_pane", pal.left_bg),
+            ("_mid_pane", pal.mid_bg),
+            ("_reader_pane", pal.left_bg),
+            ("msg_frame", pal.mid_bg),
+            ("reader_host", pal.surface),
+            ("source_list", pal.left_bg),
+            ("status", None),
+            ("header", None),
+            ("reader_title", None),
+            ("find_label", None),
+        ):
+            w = getattr(self, attr, None)
+            if w is None:
+                continue
+            try:
+                if attr == "status":
+                    w.configure(text_color=self._pal_pick(pal.muted))
+                elif attr in ("header", "reader_title"):
+                    w.configure(text_color=self._pal_pick(pal.text))
+                elif attr == "find_label":
+                    w.configure(text_color=self._pal_pick(pal.muted))
+                else:
+                    w.configure(fg_color=self._pal_pick(color))
+            except Exception:
+                pass
+        self._style_chrome_buttons()
+        self._style_themed_controls()
+        mt = menu_theme_from_palette(pal)
+        set_menu_theme(mt)
+        bar = getattr(self, "_menubar", None)
+        if bar is not None:
+            try:
+                bar.apply_theme(mt)
+            except Exception:
+                pass
+        self._tint_scrollable(getattr(self, "msg_frame", None), pal.mid_bg)
+        self._tint_scrollable(getattr(self, "source_list", None), pal.left_bg)
+
+    def _tint_scrollable(self, frame: Any, color: tuple[str, str]) -> None:
+        if frame is None:
+            return
+        try:
+            hex_c = self._pal_pick(color)
+            frame.configure(fg_color=hex_c)
+            canvas = getattr(frame, "_parent_canvas", None)
+            if canvas is not None:
+                canvas.configure(bg=hex_c, highlightthickness=0)
+            for name in ("_scrollbar_frame", "_parent_frame"):
+                inner = getattr(frame, name, None)
+                if inner is not None:
+                    try:
+                        inner.configure(fg_color=hex_c)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    def _apply_theme(self) -> None:
+        tid = resolve_theme_id(str(self._theme_var.get()))
+        self._theme_var.set(tid)
+        self._palette = apply_ctk_theme(tid)
+        self._appearance_var.set(self._palette.appearance)
+        cfg = load_config()
+        cfg["ui_theme"] = tid
+        cfg["appearance_mode"] = self._palette.appearance
+        save_config(cfg)
+        self._apply_chrome_from_palette()
+        # Ne destroy/rebuild — csak színek a meglévő widgeteken.
+        if self._source_buttons:
+            self._refresh_source_badges()
         else:
-            self.after(80, self._show_reader_placeholder)
+            self._reload_sources(reset_scroll=False)
+        self._recolor_message_list_inplace()
+        self._set_status(f"Téma: {self._palette.label}", force=True)
+        # Levél HTML papírszíne fix — ne töltsük újra. Csak üres olvasó követi a témát.
+        if self._selected_msg_id is None:
+            self._show_reader_placeholder()
+
+    def _apply_appearance(self) -> None:
+        """Régi hívások → új téma API."""
+        mode = str(self._appearance_var.get())
+        self._theme_var.set("light" if mode == "Light" else "dark")
+        self._apply_theme()
 
     def _apply_autostart(self) -> None:
         want = bool(self._autostart_var.get())
@@ -1854,16 +2209,42 @@ class App(ctk.CTk):
         self._autostart_var.set(not is_autostart_enabled())
         self._apply_autostart()
 
+    def _recreate_source_list_frame(self) -> None:
+        """CTkScrollableFrame újra — elkerüli az elkenődött / üres listát."""
+        parent = self._left_pane
+        try:
+            self.source_list.destroy()
+        except Exception:
+            pass
+        self.source_list = ctk.CTkScrollableFrame(
+            parent, width=230, fg_color=self._palette.left_bg
+        )
+        self.source_list.pack(
+            fill="both",
+            expand=True,
+            padx=8,
+            pady=4,
+            before=self._add_source_btn,
+        )
+        self._configure_fast_scroll(self.source_list, step=48)
+
     def _reload_sources(self, *, reset_scroll: bool = True) -> None:
         counts = count_messages_by_source()
         unread = count_unread_by_source()
         sources = list_sources(active_only=True)
         self._source_names = {s.id: s.name for s in sources}
+
+        scroll_pos = 0.0
+        if not reset_scroll:
+            try:
+                scroll_pos = float(self.source_list._parent_canvas.yview()[0])  # noqa: SLF001
+            except Exception:
+                scroll_pos = 0.0
+
         self._source_buttons = {}
         self._source_stat_labels = {}
         self._source_name_labels = {}
-        for w in self.source_list.winfo_children():
-            w.destroy()
+        self._recreate_source_list_frame()
         if not sources:
             ctk.CTkLabel(
                 self.source_list,
@@ -1872,13 +2253,21 @@ class App(ctk.CTk):
                 justify="left",
                 anchor="w",
             ).pack(anchor="w", padx=8, pady=12)
+            self._fix_scrollregion(self.source_list)
             if reset_scroll:
                 self._reset_scroll(self.source_list)
             return
+
         selected_id = self._selected.id if self._selected else None
         last_tag: object = object()
-        muted = ("gray40", "gray70")
-        uj_col = ("#1A56B0", "#6CB6FF")
+        pal = self._palette
+        muted = pal.muted
+        uj_col = pal.accent
+        hover = pal.source_hover
+        try:
+            wrap = max(180, min(self.source_list.winfo_width() - 36, 260))
+        except Exception:
+            wrap = 220
 
         for src in sources:
             tag_label = (src.tag or "").strip() or "Egyéb"
@@ -1887,7 +2276,7 @@ class App(ctk.CTk):
                     self.source_list,
                     text=tag_label.upper(),
                     font=self._body_font(11),
-                    text_color=("gray45", "gray60"),
+                    text_color=muted,
                     anchor="w",
                     justify="left",
                 ).pack(anchor="w", fill="x", padx=10, pady=(10, 2))
@@ -1896,27 +2285,26 @@ class App(ctk.CTk):
             n = counts.get(src.id, 0)
             u = unread.get(src.id, 0)
             active = selected_id == src.id
-            bg = ("#D5E4F7", "gray30") if active else ("gray85", "gray25")
-            hover = ("gray75", "gray35")
+            bg = pal.source_active if active else pal.source_row
 
             row = ctk.CTkFrame(
                 self.source_list,
                 fg_color=bg,
                 corner_radius=12,
-                height=54,
             )
+            row._source_id = int(src.id)  # type: ignore[attr-defined]
             row.pack(fill="x", pady=3, padx=4)
-            row.pack_propagate(False)
             inner = ctk.CTkFrame(row, fg_color="transparent")
-            inner.pack(fill="both", expand=True, padx=12, pady=6)
+            inner.pack(fill="both", expand=True, padx=12, pady=8)
 
             name_lbl = ctk.CTkLabel(
                 inner,
                 text=src.name,
                 font=self._body_font(13),
-                text_color=("gray10", "gray90"),
+                text_color=pal.text,
                 anchor="w",
                 justify="left",
+                wraplength=wrap,
             )
             name_lbl.pack(fill="x", anchor="w")
 
@@ -1939,30 +2327,47 @@ class App(ctk.CTk):
             def on_click(_e: object = None, s: Source = src) -> None:
                 self._select_source(s)
 
-            def on_enter(_e: object = None, r: ctk.CTkFrame = row, a: bool = active) -> None:
-                if not a:
-                    try:
-                        r.configure(fg_color=hover)
-                    except Exception:
-                        pass
-
-            def on_leave(_e: object = None, r: ctk.CTkFrame = row, a: bool = active, b=bg) -> None:
+            def on_enter(_e: object = None, r: ctk.CTkFrame = row, sid: int = src.id) -> None:
+                if self._selected and self._selected.id == sid:
+                    return
                 try:
-                    r.configure(fg_color=b if a else ("gray85", "gray25"))
+                    r.configure(fg_color=hover)
+                except Exception:
+                    pass
+
+            def on_leave(e: object = None, r: ctk.CTkFrame = row, sid: int = src.id) -> None:
+                try:
+                    x = int(getattr(e, "x_root", 0))
+                    y = int(getattr(e, "y_root", 0))
+                    if self._pointer_inside(r, x, y):
+                        return
+                except Exception:
+                    pass
+                active_now = bool(self._selected and self._selected.id == sid)
+                try:
+                    r.configure(
+                        fg_color=pal.source_active if active_now else pal.source_row
+                    )
                 except Exception:
                     pass
 
             for w in (row, inner, name_lbl, stat_lbl):
                 w.bind("<Button-1>", on_click, add="+")
-                w.bind("<Enter>", on_enter, add="+")
-                w.bind("<Leave>", on_leave, add="+")
+            row.bind("<Enter>", on_enter, add="+")
+            row.bind("<Leave>", on_leave, add="+")
 
             self._source_buttons[src.id] = row
             self._source_name_labels[src.id] = name_lbl
             self._source_stat_labels[src.id] = stat_lbl
 
+        self._fix_scrollregion(self.source_list)
         if reset_scroll:
             self._reset_scroll(self.source_list)
+        else:
+            try:
+                self.source_list._parent_canvas.yview_moveto(scroll_pos)  # noqa: SLF001
+            except Exception:
+                pass
 
     def _refresh_source_badges(self) -> None:
         """Csak szöveg/szín — nem építi újra a bal listát."""
@@ -1974,8 +2379,9 @@ class App(ctk.CTk):
         except Exception:
             return
         selected_id = self._selected.id if self._selected else None
-        muted = ("gray40", "gray70")
-        uj_col = ("#1A56B0", "#6CB6FF")
+        pal = self._palette
+        muted = pal.muted
+        uj_col = pal.accent
         for sid, row in list(self._source_buttons.items()):
             try:
                 if not row.winfo_exists():
@@ -1986,7 +2392,7 @@ class App(ctk.CTk):
             n = counts.get(sid, 0)
             u = unread.get(sid, 0)
             active = selected_id == sid
-            bg = ("#D5E4F7", "gray30") if active else ("gray85", "gray25")
+            bg = pal.source_active if active else pal.source_row
             if u:
                 stats = f"{n} levél · {u} új"
                 stats_color = uj_col
@@ -1998,7 +2404,7 @@ class App(ctk.CTk):
                 nl = self._source_name_labels.get(sid)
                 sl = self._source_stat_labels.get(sid)
                 if nl is not None:
-                    nl.configure(text=name)
+                    nl.configure(text=name, text_color=pal.text)
                 if sl is not None:
                     sl.configure(text=stats, text_color=stats_color)
             except Exception:
@@ -2085,7 +2491,12 @@ class App(ctk.CTk):
         if fresh:
             self._selected = fresh
             self.header.configure(text=fresh.name)
-        self._reload_sources()
+            self._source_names[fresh.id] = fresh.name
+        # Ne recreate — csak a név a listában
+        if self._source_buttons:
+            self._refresh_source_badges()
+        else:
+            self._reload_sources()
         self._set_status(f"Átnevezve: {new_name}")
 
     def _list_filter_kwargs(self) -> dict:
@@ -2153,7 +2564,17 @@ class App(ctk.CTk):
         if hasattr(self, "_filter_var") and self._filter_var.get() == "unread":
             self._reload_messages(browse_source=True)
         else:
-            self._rerender_bubbles()
+            self._apply_bubble_styles()
+            # ÚJ badge-ek eltávolítása az összes látható kártyáról
+            try:
+                for w in self.msg_frame.winfo_children():
+                    mid = getattr(w, "_msg_id", None)
+                    if mid is None:
+                        continue
+                    for ch in list(w.winfo_children()):
+                        self._destroy_uj_badges(ch)
+            except Exception:
+                pass
         self._set_status(
             f"{n} olvasatlan → olvasott: {self._selected.name}"
             if n
@@ -2179,7 +2600,16 @@ class App(ctk.CTk):
         if hasattr(self, "_filter_var") and self._filter_var.get() == "unread":
             self._reload_messages(browse_source=bool(self._selected))
         else:
-            self._rerender_bubbles()
+            self._apply_bubble_styles()
+            try:
+                for w in self.msg_frame.winfo_children():
+                    mid = getattr(w, "_msg_id", None)
+                    if mid is None:
+                        continue
+                    for ch in list(w.winfo_children()):
+                        self._destroy_uj_badges(ch)
+            except Exception:
+                pass
         self._set_status(
             f"Minden olvasatlan olvasott: {n} levél" if n else "Nem volt olvasatlan levél.",
             force=True,
@@ -2202,6 +2632,129 @@ class App(ctk.CTk):
         self._show_list_empty_state("welcome")
         self._reload_sources()
         self._set_status(f"Elrejtve: {name}", force=True)
+
+    def _delete_selected_source(self) -> None:
+        """Forrás + összes helyi levele — végleges."""
+        if not self._selected:
+            messagebox.showinfo("Törlés", "Előbb válassz egy hírlevelet a bal oldalon.")
+            return
+        src = self._selected
+        n = 0
+        try:
+            n = count_messages(src.id)
+        except Exception:
+            n = 0
+        if not messagebox.askyesno(
+            "Végleges törlés",
+            f"Végleg törlöd a helyi archívumból?\n\n"
+            f"Hírlevél: {src.name}\n"
+            f"Levelek: {n} db\n\n"
+            f"Ez nem visszavonható.\n"
+            f"A levelező fiókodban (Gmail stb.) a levelek megmaradnak.\n"
+            f"Következő szinkron újra behúzhatja őket, ha még ott vannak.",
+            icon="warning",
+        ):
+            return
+        try:
+            deleted = delete_source(src.id)
+        except Exception as exc:
+            messagebox.showerror("Törlés", str(exc))
+            return
+        self._selected = None
+        self._selected_msg_id = None
+        self.header.configure(text="Hírlevél követő")
+        self._clear_msg_frame()
+        self._show_list_empty_state("welcome")
+        self._show_reader_placeholder()
+        self._reload_sources()
+        self._set_status(
+            f"Törölve: {src.name} (+ {deleted} levél a helyi archívumból).",
+            force=True,
+        )
+
+    def _delete_selected_source_messages(self) -> None:
+        """A kiválasztott hírlevél összes helyi levele — a forrás megmarad."""
+        if not self._selected:
+            messagebox.showinfo(
+                "Helyi levelek törlése",
+                "Előbb válassz egy hírlevelet a bal oldalon.",
+            )
+            return
+        src = self._selected
+        n = 0
+        try:
+            n = count_messages(src.id)
+        except Exception:
+            n = 0
+        if n <= 0:
+            messagebox.showinfo("Helyi levelek törlése", f"Nincs helyi levél: {src.name}")
+            return
+        if not messagebox.askyesno(
+            "Helyi levelek törlése",
+            f"Törlöd a helyi archívumból az összes levelet?\n\n"
+            f"Hírlevél: {src.name}\n"
+            f"Levelek: {n} db\n\n"
+            f"A hírlevél a bal listában megmarad (üresen).\n"
+            f"A levelező fiókodban a levelek megmaradnak;\n"
+            f"a következő szinkron újra behúzhatja őket.",
+            icon="warning",
+        ):
+            return
+        try:
+            deleted = delete_messages_for_source(src.id)
+        except Exception as exc:
+            messagebox.showerror("Helyi levelek törlése", str(exc))
+            return
+        self._selected_msg_id = None
+        self._show_reader_placeholder()
+        self._refresh_source_badges()
+        self._reload_messages(browse_source=True)
+        self._set_status(
+            f"{deleted} helyi levél törölve: {src.name}",
+            force=True,
+        )
+
+    def _delete_one_message(self, msg_id: int) -> None:
+        msg_id = int(msg_id)
+        msg = next((m for m in self._messages_cache if int(m.id) == msg_id), None)
+        if msg is None:
+            msg = get_message(msg_id)
+        subj = (msg.subject if msg else "") or "(nincs tárgy)"
+        if len(subj) > 80:
+            subj = subj[:77] + "…"
+        if not messagebox.askyesno(
+            "Levél törlése",
+            f"Törlöd ezt a levelet a helyi archívumból?\n\n"
+            f"„{subj}”\n\n"
+            f"A levelező fiókodban megmarad;\n"
+            f"a következő szinkron újra behúzhatja.",
+            icon="warning",
+        ):
+            return
+        try:
+            ok = delete_message(msg_id)
+        except Exception as exc:
+            messagebox.showerror("Levél törlése", str(exc))
+            return
+        if not ok:
+            self._set_status("A levél már nem volt az archívumban.", force=True)
+            return
+        self._messages_cache = [m for m in self._messages_cache if int(m.id) != msg_id]
+        if self._selected_msg_id == msg_id:
+            self._selected_msg_id = None
+            self._show_reader_placeholder()
+        if self._find_hits:
+            self._find_hits = [h for h in self._find_hits if int(h["msg_id"]) != msg_id]
+            if self._find_index >= len(self._find_hits):
+                self._find_index = len(self._find_hits) - 1
+            self._update_find_nav()
+        self._refresh_source_badges()
+        if not self._messages_cache:
+            self._clear_msg_frame()
+            self._show_list_empty_state("no_mail" if self._selected else "empty_search")
+        else:
+            self._schedule_bubble_refresh()
+        self._set_status("Levél törölve a helyi archívumból.", force=True)
 
     def _manage_hidden_sources(self) -> None:
         hidden = [s for s in list_sources(active_only=False) if not s.active]
@@ -2343,16 +2896,16 @@ class App(ctk.CTk):
         if not self._messages_cache:
             return
 
-        bubble = ("#E4E8EE", "#252A32")
-        bubble_unread = ("#E8F0FC", "#3A4A5E")
-        bubble_sel = ("#C9DBF2", "#3A4554")
-        day_bar = ("#C5D0DC", "#252A32")
-        day_text = ("gray10", "gray90")
-        muted = ("gray40", "gray70")
-        text_col = ("gray10", "#F0F2F5")
-        accent = ("#2F6FED", "#6CB6FF")
-        uj_bg = ("#2F6FED", "#3D7FE0")
-        uj_fg = ("#FFFFFF", "#FFFFFF")
+        bubble = self._palette.bubble
+        bubble_unread = self._palette.bubble_unread
+        bubble_sel = self._palette.bubble_sel
+        day_bar = self._palette.day_bar
+        day_text = self._palette.text
+        muted = self._palette.muted
+        text_col = self._palette.text
+        accent = self._palette.accent
+        uj_bg = self._palette.uj_bg
+        uj_fg = self._palette.uj_fg
 
         for w in self.msg_frame.winfo_children():
             if getattr(w, "_is_more_btn", False):
@@ -2369,6 +2922,7 @@ class App(ctk.CTk):
                 header = ctk.CTkFrame(
                     self.msg_frame, fg_color=day_bar, corner_radius=8, height=34
                 )
+                header._is_day_header = True  # type: ignore[attr-defined]
                 header.pack(fill="x", pady=(14 if self._day_index else 4, 8), padx=8)
                 header.pack_propagate(False)
                 ctk.CTkLabel(
@@ -2394,7 +2948,7 @@ class App(ctk.CTk):
                 border_width=3 if unread else (2 if selected else 1),
                 border_color=accent
                 if (unread or selected)
-                else ("#D0D8E2", "#3A404A"),
+                else (self._palette.muted[0], self._palette.day_bar[1]),
             )
             card._msg_id = int(msg.id)  # type: ignore[attr-defined]
             card.pack(fill="x", pady=(0, 10), padx=(12, 20))
@@ -2444,6 +2998,7 @@ class App(ctk.CTk):
                 justify="left",
                 anchor="w",
             )
+            subj._bubble_role = "subject"  # type: ignore[attr-defined]
             subj.pack(anchor="w", padx=14, pady=(6, 4))
 
             preview, has_more = self._bubble_preview(msg.body_text or "")
@@ -2456,6 +3011,7 @@ class App(ctk.CTk):
                 justify="left",
                 anchor="w",
             )
+            prev._bubble_role = "preview"  # type: ignore[attr-defined]
             prev.pack(anchor="w", padx=14, pady=(0, 4))
 
             actions = ctk.CTkFrame(card, fg_color="transparent")
@@ -2475,14 +3031,15 @@ class App(ctk.CTk):
             open_btn = ctk.CTkButton(
                 actions,
                 text="Teljes szöveg",
-                width=120,
+                width=130,
                 height=30,
                 corner_radius=14,
-                fg_color=("#B8C9DE", "gray35"),
-                hover_color=("#A5B8D0", "#5A6878"),
-                text_color=text_col,
+                fg_color=self._palette.primary,
+                hover_color=self._palette.primary_hover,
+                text_color=self._palette.btn_text,
                 command=_open_full,
             )
+            open_btn._bubble_btn = "primary"  # type: ignore[attr-defined]
             open_btn.pack(side="left", padx=(0, 6))
 
             star_btn = ctk.CTkButton(
@@ -2491,11 +3048,13 @@ class App(ctk.CTk):
                 width=36,
                 height=30,
                 corner_radius=12,
-                fg_color=("gray85", "gray30"),
-                hover_color=("#E8D48A", "#5A5040"),
+                fg_color=self._palette.source_row,
+                hover_color=self._palette.source_hover,
                 text_color=("#B8860B", "#FFD54F") if msg.is_starred else text_col,
                 command=lambda mid=msg.id: self._toggle_star(mid),
             )
+            star_btn._bubble_btn = "star"  # type: ignore[attr-defined]
+            star_btn._msg_id = int(msg.id)  # type: ignore[attr-defined]
             star_btn.pack(side="left", padx=(0, 6))
 
             pdf_btn = ctk.CTkButton(
@@ -2504,11 +3063,12 @@ class App(ctk.CTk):
                 width=48,
                 height=30,
                 corner_radius=12,
-                fg_color=("gray85", "gray30"),
-                hover_color=("#A5B8D0", "#5A6878"),
+                fg_color=self._palette.source_row,
+                hover_color=self._palette.source_hover,
                 text_color=text_col,
                 command=lambda mid=msg.id: self._export_one(mid, "pdf"),
             )
+            pdf_btn._bubble_btn = "aux"  # type: ignore[attr-defined]
             pdf_btn.pack(side="left", padx=(0, 6))
 
             word_btn = ctk.CTkButton(
@@ -2517,11 +3077,12 @@ class App(ctk.CTk):
                 width=56,
                 height=30,
                 corner_radius=12,
-                fg_color=("gray85", "gray30"),
-                hover_color=("#A5B8D0", "#5A6878"),
+                fg_color=self._palette.source_row,
+                hover_color=self._palette.source_hover,
                 text_color=text_col,
                 command=lambda mid=msg.id: self._export_one(mid, "docx"),
             )
+            word_btn._bubble_btn = "aux"  # type: ignore[attr-defined]
             word_btn.pack(side="left", padx=(0, 6))
 
             copy_btn = ctk.CTkButton(
@@ -2530,12 +3091,27 @@ class App(ctk.CTk):
                 width=72,
                 height=30,
                 corner_radius=12,
-                fg_color=("gray85", "gray30"),
-                hover_color=("#A5B8D0", "#5A6878"),
+                fg_color=self._palette.source_row,
+                hover_color=self._palette.source_hover,
                 text_color=text_col,
                 command=lambda mid=msg.id: self._copy_message(mid),
             )
-            copy_btn.pack(side="left")
+            copy_btn._bubble_btn = "aux"  # type: ignore[attr-defined]
+            copy_btn.pack(side="left", padx=(0, 6))
+
+            del_btn = ctk.CTkButton(
+                actions,
+                text="Törlés",
+                width=64,
+                height=30,
+                corner_radius=12,
+                fg_color=("#C45C5C", "#8B3A3A"),
+                hover_color=("#A84848", "#6E2E2E"),
+                text_color=("#FFFFFF", "#FFFFFF"),
+                command=lambda mid=msg.id: self._delete_one_message(mid),
+            )
+            del_btn._bubble_btn = "danger"  # type: ignore[attr-defined]
+            del_btn.pack(side="left")
 
             def _click(_event: object = None, mid: int = msg.id) -> None:
                 _open_full(mid)
@@ -2725,10 +3301,13 @@ class App(ctk.CTk):
 
     def _apply_bubble_styles(self, *, remove_uj_for: Optional[int] = None) -> None:
         """Kijelölés / olvasott kinézet újrarajzolás nélkül."""
-        bubble = ("#E4E8EE", "#252A32")
-        bubble_unread = ("#E8F0FC", "#3A4A5E")
-        bubble_sel = ("#C9DBF2", "#3A4554")
-        accent = ("#2F6FED", "#6CB6FF")
+        bubble = self._palette.bubble
+        bubble_unread = self._palette.bubble_unread
+        bubble_sel = self._palette.bubble_sel
+        accent = self._palette.accent
+        border_idle = (self._palette.muted[0], self._palette.day_bar[1])
+        text_col = self._palette.text
+        muted = self._palette.muted
         for w in self.msg_frame.winfo_children():
             mid = getattr(w, "_msg_id", None)
             if mid is None:
@@ -2748,18 +3327,121 @@ class App(ctk.CTk):
                 w.configure(
                     fg_color=bg,
                     border_width=3 if unread else (2 if selected else 1),
-                    border_color=accent
-                    if (unread or selected)
-                    else ("#D0D8E2", "#3A404A"),
+                    border_color=accent if (unread or selected) else border_idle,
                 )
             except Exception:
                 continue
+            self._recolor_bubble_children(
+                w,
+                unread=unread,
+                selected=selected,
+                text_col=text_col,
+                muted=muted,
+                accent=accent,
+                starred=bool(msg.is_starred),
+            )
             if remove_uj_for is not None and int(mid) == int(remove_uj_for):
                 try:
                     for ch in list(w.winfo_children()):
                         self._destroy_uj_badges(ch)
                 except Exception:
                     pass
+
+    def _recolor_bubble_children(
+        self,
+        root: Any,
+        *,
+        unread: bool,
+        selected: bool,
+        text_col: tuple[str, str],
+        muted: tuple[str, str],
+        accent: tuple[str, str],
+        starred: bool,
+    ) -> None:
+        pal = self._palette
+        try:
+            kids = list(root.winfo_children())
+        except Exception:
+            return
+        for ch in kids:
+            role = getattr(ch, "_bubble_role", None)
+            btn = getattr(ch, "_bubble_btn", None)
+            try:
+                if role == "subject":
+                    ch.configure(text_color=text_col if (unread or selected) else muted)
+                elif role == "preview":
+                    ch.configure(text_color=muted)
+                elif btn == "primary":
+                    ch.configure(
+                        fg_color=pal.primary,
+                        hover_color=pal.primary_hover,
+                        text_color=pal.btn_text,
+                    )
+                elif btn == "star":
+                    ch.configure(
+                        fg_color=pal.source_row,
+                        hover_color=pal.source_hover,
+                        text="★" if starred else "☆",
+                        text_color=("#B8860B", "#FFD54F") if starred else text_col,
+                    )
+                elif btn == "aux":
+                    ch.configure(
+                        fg_color=pal.source_row,
+                        hover_color=pal.source_hover,
+                        text_color=text_col,
+                    )
+                elif btn == "danger":
+                    ch.configure(
+                        fg_color=("#C45C5C", "#8B3A3A"),
+                        hover_color=("#A84848", "#6E2E2E"),
+                        text_color=("#FFFFFF", "#FFFFFF"),
+                    )
+                elif getattr(ch, "_is_uj_badge", False):
+                    ch.configure(fg_color=pal.uj_bg)
+                    for inner in ch.winfo_children():
+                        try:
+                            inner.configure(text_color=pal.uj_fg)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+            self._recolor_bubble_children(
+                ch,
+                unread=unread,
+                selected=selected,
+                text_col=text_col,
+                muted=muted,
+                accent=accent,
+                starred=starred,
+            )
+
+    def _recolor_message_list_inplace(self) -> None:
+        """Témaváltás: meglévő napfejléc / buborék / gomb — destroy nélkül."""
+        pal = self._palette
+        try:
+            children = list(self.msg_frame.winfo_children())
+        except Exception:
+            return
+        for w in children:
+            try:
+                if getattr(w, "_is_more_btn", False):
+                    w.configure(
+                        fg_color=pal.primary,
+                        hover_color=pal.primary_hover,
+                        text_color=pal.btn_text,
+                    )
+                    continue
+                if getattr(w, "_is_day_header", False):
+                    w.configure(fg_color=pal.day_bar)
+                    for ch in w.winfo_children():
+                        try:
+                            ch.configure(text_color=pal.text)
+                        except Exception:
+                            pass
+                    continue
+            except Exception:
+                continue
+        self._apply_bubble_styles()
 
     def _destroy_uj_badges(self, widget: object) -> None:
         try:
@@ -2806,7 +3488,35 @@ class App(ctk.CTk):
         self._set_status("Kedvenchez adva." if starred else "Kedvenc törölve.", force=True)
         if hasattr(self, "_filter_var") and self._filter_var.get() == "starred" and not starred:
             self._messages_cache = [m for m in self._messages_cache if m.id != msg_id]
-        self._schedule_bubble_refresh()
+            self._schedule_bubble_refresh()
+            return
+        # Helyben: csillag gomb + tárgy ★ előtag
+        self._apply_bubble_styles()
+        try:
+            for w in self.msg_frame.winfo_children():
+                if getattr(w, "_msg_id", None) != int(msg_id):
+                    continue
+                for ch in w.winfo_children():
+                    self._update_star_subject_label(ch, starred=starred)
+        except Exception:
+            pass
+
+    def _update_star_subject_label(self, widget: Any, *, starred: bool) -> None:
+        try:
+            if getattr(widget, "_bubble_role", None) == "subject":
+                text = str(widget.cget("text") or "")
+                if starred and not text.startswith("★ "):
+                    widget.configure(text=f"★ {text.lstrip('★ ').lstrip()}")
+                elif not starred and text.startswith("★ "):
+                    widget.configure(text=text[2:].lstrip())
+                return
+        except Exception:
+            pass
+        try:
+            for ch in widget.winfo_children():
+                self._update_star_subject_label(ch, starred=starred)
+        except Exception:
+            pass
 
     def _copy_message(self, msg_id: int) -> None:
         msg = next((m for m in self._messages_cache if m.id == msg_id), None)
@@ -3156,6 +3866,7 @@ class App(ctk.CTk):
 
         def work() -> None:
             summary = ""
+            totals: dict[str, int] = {}
 
             def progress(msg: str) -> None:
                 self.after(0, lambda m=msg: self._set_status(m))
@@ -3172,12 +3883,23 @@ class App(ctk.CTk):
 
             def done() -> None:
                 self._syncing = False
-                self._reload_sources()
+                total_new = 0
+                try:
+                    total_new = int(sum(int(v) for v in (totals or {}).values()))
+                except Exception:
+                    total_new = 0
+                # Forráslista: ne recreate — csak badge számok
+                if self._source_buttons:
+                    self._refresh_source_badges()
+                else:
+                    self._reload_sources(reset_scroll=False)
+                # Buboréklista csak ha jött új levél (vagy keresés aktív)
                 q = self.search.get().strip()
-                if q:
-                    self._reload_messages(browse_source=False)
-                elif self._selected:
-                    self._reload_messages(browse_source=True)
+                if total_new > 0 or q:
+                    if q:
+                        self._reload_messages(browse_source=False)
+                    elif self._selected:
+                        self._reload_messages(browse_source=True)
                 self._set_status(summary, force=True)
 
             self.after(0, done)
@@ -3212,10 +3934,8 @@ class App(ctk.CTk):
         if self._tray_icon is not None:
             return
         try:
-            from app.tray import run_tray
-
             self._tray_icon = run_tray(
-                on_show=lambda: self.after(0, self._show_from_tray),
+                on_toggle=lambda: self.after(0, self._toggle_from_tray),
                 on_sync=lambda: self.after(0, self._sync_async),
                 on_quit=lambda: self.after(0, self._quit_app),
             )
@@ -3223,11 +3943,178 @@ class App(ctk.CTk):
             self._tray_icon = None
             self._set_status(f"Tálca ikon hiba: {exc}", force=True)
 
-    def _maximize(self) -> None:
+    def _run_startup_sync(self) -> None:
+        self._startup_sync_job = None
+        if self._syncing:
+            return
+        self._sync_async()
+
+    def _bind_system_resume_watch(self) -> None:
+        from app.power_events import bind_system_resume
+
+        if bind_system_resume(self, self._on_system_resume):
+            return
+        self.after(2000, self._bind_system_resume_watch)
+
+    def _on_system_resume(self) -> None:
+        """Laptop fedél / alvás után — kis várakozás, majd szinkron (hálózat)."""
+        now = time.monotonic()
+        if now - getattr(self, "_last_resume_sync_ts", 0.0) < 20.0:
+            return
+        self._last_resume_sync_ts = now
+        if self._resume_sync_job is not None:
+            try:
+                self.after_cancel(self._resume_sync_job)
+            except Exception:
+                pass
+        self._resume_sync_job = self.after(2500, self._sync_after_resume)
+
+    def _sync_after_resume(self) -> None:
+        self._resume_sync_job = None
+        if self._syncing:
+            return
+        self._set_status("Ébredés után — levelek ellenőrzése…", force=True)
+        self._sync_async()
+
+    def _hwnd(self) -> int:
+        from app.win_chrome import hwnd_of
+
+        return hwnd_of(self)
+
+    def _prepare_main_window(self) -> None:
+        if self._window_prepared:
+            return
+        self._reveal_main_window(first_time=True)
+        self._window_prepared = True
+        self._bind_system_resume_watch()
+
+    def _reveal_main_window(self, *, first_time: bool = False) -> None:
+        """Egy lépésben jelenik meg — alpha 0 → layout → alpha 1 (kevesebb fekete villanás)."""
+        from app import win_chrome as wc
+
         try:
-            self.state("zoomed")
+            self.attributes("-alpha", 0.0)
         except Exception:
             pass
+        try:
+            self.deiconify()
+        except Exception:
+            pass
+        if first_time:
+            self._setup_frameless_window()
+        else:
+            wc.strip_title_bar(self)
+            wc.maximize(self)
+            self._win_maximized = True
+            bar = getattr(self, "_menubar", None)
+            if bar is not None:
+                try:
+                    bar.set_maximize_icon(True)
+                except Exception:
+                    pass
+        try:
+            self.update_idletasks()
+        except Exception:
+            pass
+        try:
+            self.attributes("-alpha", 1.0)
+        except Exception:
+            pass
+        try:
+            self.lift()
+            self.focus_force()
+        except Exception:
+            pass
+        try:
+            from app.app_icon import apply_window_icon
+
+            apply_window_icon(self)
+        except Exception:
+            pass
+        self.after(120, lambda: wc.strip_title_bar(self))
+
+    def _setup_frameless_window(self) -> None:
+        """Címsor nélkül, de Windows ShowWindow(MAXIMIZE) — munkaterület + nagyítás OK."""
+        from app import win_chrome as wc
+
+        try:
+            self.overrideredirect(False)
+        except Exception:
+            pass
+        try:
+            self.update_idletasks()
+        except Exception:
+            pass
+        wc.strip_title_bar(self)
+        wc.maximize(self)
+        self._win_maximized = True
+        bar = getattr(self, "_menubar", None)
+        if bar is not None:
+            try:
+                bar.set_maximize_icon(True)
+            except Exception:
+                pass
+
+    def _minimize_window(self) -> None:
+        from app import win_chrome as wc
+
+        wc.minimize(self)
+
+    def _toggle_maximize(self) -> None:
+        from app import win_chrome as wc
+
+        wc.toggle_maximize(self)
+        self._win_maximized = wc.is_maximized(self)
+        bar = getattr(self, "_menubar", None)
+        if bar is not None:
+            try:
+                bar.set_maximize_icon(self._win_maximized)
+            except Exception:
+                pass
+        self.after(50, lambda: wc.strip_title_bar(self))
+
+    def _work_area_rect(self) -> tuple[int, int, int, int]:
+        from app.win_chrome import primary_work_area
+
+        if sys.platform == "win32":
+            try:
+                import ctypes
+                from ctypes import wintypes
+
+                class RECT(ctypes.Structure):
+                    _fields_ = [
+                        ("left", ctypes.c_long),
+                        ("top", ctypes.c_long),
+                        ("right", ctypes.c_long),
+                        ("bottom", ctypes.c_long),
+                    ]
+
+                class MONITORINFO(ctypes.Structure):
+                    _fields_ = [
+                        ("cbSize", wintypes.DWORD),
+                        ("rcMonitor", RECT),
+                        ("rcWork", RECT),
+                        ("dwFlags", wintypes.DWORD),
+                    ]
+
+                user32 = ctypes.windll.user32
+                hwnd = self._hwnd()
+                MONITOR_DEFAULTTONEAREST = 2
+                monitor = user32.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)
+                if monitor:
+                    mi = MONITORINFO()
+                    mi.cbSize = ctypes.sizeof(MONITORINFO)
+                    if user32.GetMonitorInfoW(monitor, ctypes.byref(mi)):
+                        r = mi.rcWork
+                        return (
+                            int(r.left),
+                            int(r.top),
+                            max(400, int(r.right - r.left)),
+                            max(300, int(r.bottom - r.top)),
+                        )
+            except Exception:
+                pass
+        return primary_work_area()
 
     def _hide_to_tray(self) -> None:
         try:
@@ -3238,16 +4125,39 @@ class App(ctk.CTk):
             self.withdraw()
         except Exception:
             pass
-        self._set_status("A program a tálcán fut (jobb klikk → Kilépés a teljes bezáráshoz).", force=True)
+        self._set_status(
+            "A program a tálcán fut (jobb klikk → Kilépés a teljes bezáráshoz).",
+            force=True,
+        )
 
     def _show_from_tray(self) -> None:
         try:
-            self.deiconify()
-            self._maximize()
-            self.lift()
-            self.focus_force()
+            if not self._window_prepared:
+                self._prepare_main_window()
+            else:
+                self._reveal_main_window(first_time=False)
         except Exception:
             pass
+
+    def _is_main_window_visible(self) -> bool:
+        try:
+            if not self.winfo_viewable():
+                return False
+            if str(self.state()) == "iconic":
+                return False
+            return True
+        except Exception:
+            return False
+
+    def _toggle_from_tray(self) -> None:
+        """Tálca ikon (bal klikk): látható ablak → elrejtés, rejtve → megnyitás."""
+        try:
+            if self._is_main_window_visible():
+                self._hide_to_tray()
+            else:
+                self._show_from_tray()
+        except Exception:
+            self._show_from_tray()
 
     def _on_close(self) -> None:
         """Ablak X / Alt+F4 → system tray, nem kilépés."""
@@ -3262,6 +4172,11 @@ class App(ctk.CTk):
         if self._backup_job:
             try:
                 self.after_cancel(self._backup_job)
+            except Exception:
+                pass
+        if self._resume_sync_job:
+            try:
+                self.after_cancel(self._resume_sync_job)
             except Exception:
                 pass
         if self._tray_icon is not None:

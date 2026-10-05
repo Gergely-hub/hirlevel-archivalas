@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biztonság és Adatvédelem - Hírlevél követő</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #fff;
+            margin: 0;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1, h2, h3 { color: #2c3e50; margin-top: 24px; }
+        h1 { border-bottom: 3px solid #e74c3c; padding-bottom: 10px; }
+        h2 { border-left: 4px solid #e74c3c; padding-left: 12px; }
+        code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+        pre { background: #f5f5f5; padding: 12px; border-radius: 5px; overflow-x: auto; }
+        ul, ol { margin: 12px 0; padding-left: 24px; }
+        li { margin: 8px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background: #f5f5f5; font-weight: 600; }
+        .warning { background: #ffebee; border-left: 4px solid #e74c3c; padding: 12px; margin: 12px 0; border-radius: 3px; }
+        .success { background: #e8f5e9; border-left: 4px solid #27ae60; padding: 12px; margin: 12px 0; border-radius: 3px; }
+        .note { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 12px; margin: 12px 0; border-radius: 3px; }
+        a { color: #e74c3c; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .footer { border-top: 1px solid #ddd; margin-top: 32px; padding-top: 16px; font-size: 0.9em; color: #666; }
+        .checklist { margin: 12px 0; }
+        .checklist-item { margin: 8px 0; }
+        .check { color: #27ae60; font-weight: bold; }
+        .cross { color: #e74c3c; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<h1>Biztonsági és Adatvédelmi Nyilatkozat</h1>
+<p><strong>Hírlevél követő</strong> – Asztali Alkalmazás</p>
+<p><em>Utolsó módosítás: 2026. október</em></p>
+
+<h2>1. Bevezetés</h2>
+<p>Ez a dokumentum ismerteti az alkalmazás biztonsági jellemzőit, a feldolgozandó adatok védelmét, valamint az Ön által vállalt biztonsági felelősséget a <strong>Hírlevél követő</strong> asztali alkalmazás használata során.</p>
+
+<div class="note">
+    <strong>📌 Fő biztonsági megállapítás:</strong> Az alkalmazás 100%-ban helyi feldolgozást nyújt. Az adatok nem kerülnek fejlesztői szerverekre, nincsen központi szinkronizálás vagy telemetria. Az adatvédelem <strong>az Ön operációs rendszer biztonságára és számítógép-fizikai biztonságára</strong> támaszkodik.
+</div>
+
+<h2>2. Architektúra és Adatok Helye</h2>
+<h3>2.1 Helyi Adatfeldolgozás</h3>
+<ul>
+    <li><strong>Feldolgozás:</strong> Az alkalmazás minden műveletet az Ön Windows-számítógépén végez</li>
+    <li><strong>Tárolás:</strong> Az összes adat az alábbi helyre kerül: <code>%LOCALAPPDATA%\HirlevelKoveto\</code></li>
+    <li><strong>Konkrét útvonal:</strong> <code>C:\Users\[YourUsername]\AppData\Local\HirlevelKoveto\</code></li>
+</ul>
+
+<h3>2.2 Nincsen Szerver Kommunikáció</h3>
+<ul>
+    <li><span class="check">✓</span> Az alkalmazás <strong>nem kommunikál</strong> fejlesztői szerverekkel</li>
+    <li><span class="check">✓</span> Nincsen telemetria vagy nyomon követés</li>
+    <li><span class="check">✓</span> Nincsen automatikus frissítés-ellenőrzés</li>
+    <li><span class="check">✓</span> Nincsen analytics</li>
+</ul>
+
+<h2>3. Tárolt Adatok és Biztonsági Jellemzőik</h2>
+
+<h3>3.1 config.json – IMAP Hitelesítés</h3>
+<div class="warning">
+    <strong>⚠️ KRITIKUS: Nincsen titkosítva!</strong>
+</div>
+<p><strong>Tartalom:</strong> IMAP-szerver, e-mail cím, jelszó/alkalmazásjelszó</p>
+<p><strong>Biztonsági státusz:</strong></p>
+<ul>
+    <li><span class="cross">✗</span> <strong>TITKOSÍTÁS:</strong> Nincsen titkosítva</li>
+    <li><span class="cross">✗</span> <strong>FIZIKAI BIZTONSAG:</strong> Ha valaki hozzáféréshez jut az Ön számítógépéhez, szoftver segítségével kiolvasható</li>
+</ul>
+
+<p><strong>Biztonsági Javaslatok:</strong></p>
+<ol>
+    <li><strong>Gmail-nál:</strong> Használjon <strong>alkalmazásjelszót</strong> (App Password), nem a teljes Gmail-jelszót
+        <ul>
+            <li>Google Account → Security → App passwords</li>
+            <li>Ez a jelszó csak az Alkalmazáshoz használható</li>
+            <li>Külön inaktiválható a Google-ban</li>
+        </ul>
+    </li>
+    <li><strong>BitLocker:</strong> Engedélyezze a Windows lemez-titkosítást
+        <ul>
+            <li>Windows Pro/Enterprise: <strong>Beépített BitLocker</strong></li>
+            <li>Windows Home: <strong>Device Encryption</strong> (ha elérhető)</li>
+        </ul>
+    </li>
+    <li><strong>Windows-jelszó:</strong> Erős, legalább 12 karakter, egyedi</li>
+</ol>
+
+<h3>3.2 hirlevelek.db – SQLite Adatbázis</h3>
+<p><strong>Tartalom:</strong> E-mail üzenetek, feladó, tárgy, dátum, olvasott státusz</p>
+<p><strong>Biztonsági státusz:</strong></p>
+<ul>
+    <li><span class="cross">✗</span> <strong>TITKOSÍTÁS:</strong> SQLite adatbázis nem titkosított</li>
+    <li><span class="cross">✗</span> <strong>KINYERÉS:</strong> Ha valaki hozzáféréshez jut, az adatbázist máshol megnyithatja</li>
+</ul>
+
+<p><strong>Megoldás:</strong> BitLocker lemez-titkosítás védelemmel ellátott.</p>
+
+<h2>4. Biztonsági Ajánlások Lépésről Lépésre</h2>
+
+<div class="success">
+    <h3>✓ Első Telepítéskor</h3>
+    <ol>
+        <li>GitHub-ról töltse le az alkalmazást (nem más forrásokból)</li>
+        <li>Antivírus szoftverrel ellenőrizze az EXE-fájlt</li>
+        <li>Telepítse az alkalmazást (Inno Setup telepítő)</li>
+    </ol>
+</div>
+
+<div class="success">
+    <h3>✓ Az Alkalmazás Konfigurálása</h3>
+    <ol>
+        <li><strong>Gmail-nál:</strong> Alkalmazásjelszót generáljon</li>
+        <li><strong>config.json:</strong> Ne módosítsa manuálisan</li>
+    </ol>
+</div>
+
+<div class="success">
+    <h3>✓ Folyamatos Biztonsag (Rendszeres)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Intézkedés</th>
+                <th>Gyakorisag</th>
+                <th>Fontosság</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Windows-frissítések</td>
+                <td>Hetente 1x</td>
+                <td>Kritikus</td>
+            </tr>
+            <tr>
+                <td>Antivírus vizsgálat</td>
+                <td>Hetente 1x</td>
+                <td>Magas</td>
+            </tr>
+            <tr>
+                <td>Biztonsági mentés (export)</td>
+                <td>Hetente-havonta</td>
+                <td>Magas</td>
+            </tr>
+            <tr>
+                <td>Alkalmazás frissítések</td>
+                <td>Havonta 1x (ellenőrzés)</td>
+                <td>Közepes</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<h2>5. Biztonsági Ellenőrzési Lista</h2>
+
+<div class="checklist">
+    <div class="checklist-item"><span class="check">☐</span> <strong>Erős Windows-jelszó</strong> – Egyedi, legalább 12 karakter</div>
+    <div class="checklist-item"><span class="check">☐</span> <strong>BitLocker engedélyezve</strong> – Lemez titkosítás (Windows Pro/Enterprise)</div>
+    <div class="checklist-item"><span class="check">☐</span> <strong>Antivírus aktív</strong> – Windows Defender vagy másik</div>
+    <div class="checklist-item"><span class="check">☐</span> <strong>Windows-frissítések</strong> – Automatikus vagy hetente</div>
+    <div class="checklist-item"><span class="check">☐</span> <strong>Alkalmazásjelszó</strong> – Gmail-nál App Password használata</div>
+    <div class="checklist-item"><span class="check">☐</span> <strong>Biztonsági mentés</strong> – Hetente/havonta export</div>
+    <div class="checklist-item"><span class="check">☐</span> <strong>Zárolt képernyő</strong> – Munkahely elhagyásakor Win+L</div>
+    <div class="checklist-item"><span class="check">☐</span> <strong>Fizikai biztonság</strong> – Ne hagyja felügyelet nélkül az nyitott laptopot</div>
+</div>
+
+<h2>6. Biztonsagi Incidensek</h2>
+<h3>Ha gyanítja, hogy az IMAP jelszó kompromittálódott:</h3>
+<ol>
+    <li>Azonnal módosítsa az IMAP-jelszavát</li>
+    <li>Google Fiók (Gmail-nál): https://myaccount.google.com/security → Jelszó módosítása</li>
+    <li>Az Alkalmazásban: Adatkezelés → IMAP hitelesítés törlése és új jelszó megadása</li>
+</ol>
+
+<h2>7. Felelősség Nyilatkozat</h2>
+<p>Ez a biztonsági nyilatkozat <strong>tájékoztató jellegű</strong>. Az alkalmazás fejlesztője:</p>
+<ul>
+    <li><span class="cross">✗</span> <strong>Nem garantálja</strong> az adatok biztonságát</li>
+    <li><span class="cross">✗</span> <strong>Nem felelős</strong> az Ön gépén tárolt adatok elvesztéséért vagy sérüléséért</li>
+    <li><span class="check">✓</span> <strong>Javaslatokat nyújt</strong> a jó gyakorlatokra</li>
+</ul>
+
+<div class="footer">
+    <p><strong>Az Ön felelőssége</strong> az alkalmazás és az adatai biztonsági gyakorlatának megvalósítása.</p>
+    <p><em>Készült: 2026. október | Hírlevél követő Alkalmazás</em></p>
+</div>
+
+</body>
+</html>
