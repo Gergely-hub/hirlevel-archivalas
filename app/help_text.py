@@ -5,12 +5,17 @@ from __future__ import annotations
 APP_NAME = "Hírlevél követő"
 APP_VERSION = "1.0"
 
+try:
+    from app.build_info import BUILD_STAMP as _BUILD_STAMP
+except ImportError:
+    _BUILD_STAMP = "dev"
+
 NEVJEGY = f"""{APP_NAME}
 Verzió: {APP_VERSION}
+Build: {_BUILD_STAMP}
 
 Hírlevelek helyi archívuma a leveleződből.
-A levelek a gépeden maradnak; a program nem küldi el őket harmadik félnek,
-kivéve ha te választod a Google Drive mentést.
+A levelek a gépeden maradnak; a program nem küldi el őket harmadik félnek.
 
 Bezárás (X): a program a tálcán tovább fut.
 Teljes kilépés: Fájl → Kilépés, vagy a tálca menü → Kilépés.
@@ -20,9 +25,13 @@ SÚGÓ_ROVID = """Indítás
 • Indítsd a Hírlevél követőt (INDITAS vagy a program ikonja).
 • Ha „már fut” üzenetet kapsz: nézd a tálcát (óra mellett), ott megnyithatod.
 
-Levelező fiók
-• Levelezés → Levelező fiókok… — add meg a címedet és az alkalmazásjelszót
-  (Gmailnél nem a szokásos jelszó, hanem az alkalmazásjelszó).
+Levelező fiók (IMAP)
+• Levelezés → Levelező fiókok… — szolgáltató választása (Gmail, Outlook, Yahoo,
+  iCloud, Freemail, Citromail, Vipmail) vagy egyéni IMAP szerver.
+• Több fiók is felvehető; a „Most ellenőriz” mindet szinkronizálja.
+• Sok helyen alkalmazásjelszó kell (Gmail / Outlook / Yahoo / iCloud),
+  nem a szokásos bejelentkezési jelszó.
+• ProtonMail nincs támogatva (nincs sima IMAP).
 • Most ellenőriz: új levelek behúzása.
 • Teljes előzmény import: régebbi levelek is (lassabb).
 
@@ -30,6 +39,9 @@ Hírlevelek
 • Bal oldalon válassz küldőt, vagy vedd fel: + Új hírlevél.
 • Címke: csoportosítja a listát.
 • Elrejtés: eltünteti a listából (nem törli); Elrejtettek… alatt visszaállítható.
+• Törlés…: a hírlevelet és helyi leveleit végleg törli (a levelező fiókban megmaradnak).
+• Helyi levelek törlése…: csak a levelek, a hírlevél a listában marad.
+• Buborékon „Törlés”: egyetlen helyi levél.
 
 Olvasás és keresés
 • Középen a lista, jobbra a formázott levél.
@@ -42,7 +54,7 @@ Mentés Word / PDF
 
 Biztonsági mentés
 • Fájl → Mentés biztonsági másolat…
-• Beállítások → Mentés helye: Gépre vagy Google Drive.
+• Beállítások → Mentési mappa (gépre)…
 • Automata mentés: Beállításokban bekapcsolható (napi / heti / havi).
 """
 
@@ -52,11 +64,6 @@ A beállításokban lehetnek a levelező fiók adatai (például alkalmazásjels
 
 Gépre mentés
 A zip a választott mappába kerül. Ezt a mappát te őrzöd (lemez, USB, stb.).
-
-Google Drive mentés
-A program a saját Google-fiókodba tölti fel a mentést
-(a „HirlevelKoveto-backup” mappába), böngészős engedély után.
-Ehhez internet kell. A Drive asztali programja nem szükséges.
 
 Visszaállítás
 Fájl → Visszaállítás backupból… — felülírja a jelenlegi archívumot.
@@ -94,9 +101,47 @@ Beállítások → Mentés helye → Gépre (mappa).
 
 ADATKEZELES = """Adatkezelés röviden
 
-• A levelek és beállítások a saját Windows-felhasználói mappádban tárolódnak.
-• A program a leveleződől (IMAP) olvassa a hírleveleket a megadott fiókkal.
-• Harmadik félnek adatot csak akkor küld, ha te indítasz Google Drive mentést
-  (akkor a mentési fájl a te Google-fiókodba kerül).
-• Nincs reklám, nincs kötelező felhőfiók a mindennapi használathoz.
+Helyi feldolgozás
+• A levelek és beállítások az AppData mappádban tárolódnak (nem az interneten).
+• A program a leveleződől (IMAP, SSL/TLS) olvassa a hírleveleket a megadott fiókokkal.
+• Nincsen telemetria, nincsen központi szerver.
+
+Adataid
+• IMAP-jelszó (vagy alkalmazásjelszó): a config.json fájlban, NEM titkosítva
+  → Javasolt: Gmail-nál alkalmazásjelszó, nem a teljes jelszó
+  → Javasolt: Windows-jelszó + BitLocker (lemez-titkosítás) erősen ajánlott
+• Levelek és metaadatok: SQLite adatbázis, helyi tárolás
+• Jól ellenőrizd: ki fér hozzá az Ön gépéhez
+
+Google Drive (opcionális)
+• Ha bekapcsolod: a mentések az Ön Google-fiókon lesznek, Google biztonsagi szabályok szerint
+• Teljes manuális kontroll: te döntöd el, hogy kívánsz-e menteni
+
+Többet szeretnél?
+Teljes GDPR-tájékoztatáshoz lásd a csomagban:
+  ADATKEZELESI_TAJEKOZTATO.md
+  BIZTONSAG_ES_ADATVEDELEM.md
+"""
+
+ADATVEDELEM_TELJES = """GDPR és Adatvédelem
+
+Ez az alkalmazás 100%-ban helyi feldolgozást nyújt.
+Minden adat az Ön gépén marad. Nincsen fejlesztői szerver, nincsen telemetria.
+
+Adatkezelő: ÖN (saját gépén feldolgozás)
+Feldolgozandó adatok: IMAP-jelszó, levelek, metaadatok, beállítások
+Megőrzés: az Ön által irányítva (törlés, export, biztonsági mentés)
+Az Ön jogai: hozzáférés, helyesbítés, törlés, adathordozhatóság
+Panaszok: NAIH (Nemzeti Adatvédelmi és Információszabadság Hatóság)
+
+Biztonsági kockázatok:
+• Az IMAP-jelszó nincs titkosítva: física biztonsag az Ön feladata
+• Ajánlott: alkalmazásjelszó + Windows-jelszó + BitLocker
+• Adatbázis is helyi: Windows felhasználói jogosultságokra támaszkodva
+
+Teljes tájékoztatás a csomagban:
+  → ADATKEZELESI_TAJEKOZTATO.md (GDPR-kompatibilis)
+  → BIZTONSAG_ES_ADATVEDELEM.md (biztonsági javaslatok)
+  → FELHASZNALASI_FELTETELEK.md (EULA, licenc, felelősség)
+  → LICENSE.md (MIT-licenc)
 """

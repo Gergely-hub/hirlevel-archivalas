@@ -16,6 +16,17 @@ if not defined PY (
 echo [Build] HirlevelKoveto.exe  -^>  program\
 REM Ha fut az app, az exe nem csereelheto — elozo build igy regi menut hagyott
 taskkill /IM HirlevelKoveto.exe /F >nul 2>&1
+
+REM Build idobelyeg (ellenorzes: program\HirlevelKoveto.exe --version)
+"%PY%" "%~dp0scripts\write_build_info.py"
+if errorlevel 1 ( echo build_info hiba & pause & exit /b 1 )
+
+REM Kék boríték ikon (tálca = system tray)
+"%PY%" "%~dp0scripts\make_app_icon.py"
+if errorlevel 1 ( echo ikon hiba & pause & exit /b 1 )
+
+if exist "_build_work" rmdir /s /q "_build_work"
+if exist "_build_out" rmdir /s /q "_build_out"
 "%PY%" -m pip install -q -r requirements.txt
 if errorlevel 1 ( echo pip hiba & pause & exit /b 1 )
 "%PY%" -m pip install -q pyinstaller
@@ -26,19 +37,27 @@ REM Ideiglenes dist a projektben, majd atmasoljuk EGYSZERU program\ mappaba
   --name "HirlevelKoveto" ^
   --windowed ^
   --onedir ^
+  --icon "%~dp0app\assets\hirlevel.ico" ^
   --distpath "_build_out" ^
   --workpath "_build_work" ^
   --specpath "_build_work" ^
   --paths "." ^
   --add-data "%~dp0config.example.json;." ^
+  --add-data "%~dp0app\theme_assets;app/theme_assets" ^
+  --add-data "%~dp0app\assets\hirlevel.ico;app/assets" ^
   --hidden-import=customtkinter ^
   --hidden-import=app.ctk_menu ^
+  --hidden-import=app.themes ^
+  --hidden-import=app.build_info ^
   --hidden-import=app.imap_providers ^
   --hidden-import=tkinterweb ^
   --hidden-import=htmldocx ^
   --hidden-import=app.export_rich ^
   --hidden-import=app.tray ^
+  --hidden-import=app.app_icon ^
   --hidden-import=app.gdrive_backup ^
+  --hidden-import=app.win_chrome ^
+  --hidden-import=app.dpi ^
   --hidden-import=app.single_instance ^
   --hidden-import=app.help_text ^
   --hidden-import=pystray ^
@@ -66,11 +85,17 @@ if exist "program" (
 mkdir "program"
 xcopy /e /i /y "_build_out\HirlevelKoveto\*" "program\" >nul
 if exist "OLVASD.md" copy /y "OLVASD.md" "program\OLVASD.md" >nul
+if exist "ADATKEZELESI_TAJEKOZTATO.md" copy /y "ADATKEZELESI_TAJEKOZTATO.md" "program\ADATKEZELESI_TAJEKOZTATO.md" >nul
+if exist "FELHASZNALASI_FELTETELEK.md" copy /y "FELHASZNALASI_FELTETELEK.md" "program\FELHASZNALASI_FELTETELEK.md" >nul
+if exist "BIZTONSAG_ES_ADATVEDELEM.md" copy /y "BIZTONSAG_ES_ADATVEDELEM.md" "program\BIZTONSAG_ES_ADATVEDELEM.md" >nul
+if exist "LICENSE.md" copy /y "LICENSE.md" "program\LICENSE.md" >nul
 
 rmdir /s /q "_build_out" 2>nul
 rmdir /s /q "_build_work" 2>nul
 
 echo.
-echo Kesz. Inditas: INDITAS.cmd
-echo Exe: program\HirlevelKoveto.exe
+echo Kesz. Exe: program\HirlevelKoveto.exe
+"program\HirlevelKoveto.exe" --version 2>nul
+echo.
+echo Inditas elott: tálca ikon → Kilépés (ha fut), aztán az exe.
 echo.
