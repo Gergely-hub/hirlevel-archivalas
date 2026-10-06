@@ -46,17 +46,17 @@ Name: "autostart"; Description: "Windows indításkor a tálcán induljon"; Grou
 [Files]
 ; PyInstaller onedir tartalom
 Source: "..\program\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Jogi dokumentumok (Markdown)
+; Jogi dokumentumok (Markdown) - gyökérben
 Source: "..\OLVASD.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\ADATKEZELESI_TAJEKOZTATO.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\FELHASZNALASI_FELTETELEK.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\BIZTONSAG_ES_ADATVEDELEM.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE.md"; DestDir: "{app}"; Flags: ignoreversion
-; Jogi dokumentumok (HTML - az alkalmazáson belüli megjelenítéshez)
-Source: "..\ADATKEZELESI_TAJEKOZTATO.html"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\FELHASZNALASI_FELTETELEK.html"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\BIZTONSAG_ES_ADATVEDELEM.html"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\LICENSE.html"; DestDir: "{app}"; Flags: ignoreversion
+; Jogi dokumentumok (HTML) - Hivatalos alkönyvtárban
+Source: "..\ADATKEZELESI_TAJEKOZTATO.html"; DestDir: "{app}\Hivatalos"; Flags: ignoreversion
+Source: "..\FELHASZNALASI_FELTETELEK.html"; DestDir: "{app}\Hivatalos"; Flags: ignoreversion
+Source: "..\BIZTONSAG_ES_ADATVEDELEM.html"; DestDir: "{app}\Hivatalos"; Flags: ignoreversion
+Source: "..\LICENSE.html"; DestDir: "{app}\Hivatalos"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"

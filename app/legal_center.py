@@ -143,17 +143,17 @@ class LegalCenterWindow(ctk.CTkToplevel):
             error_label.pack(fill="both", expand=True, padx=16, pady=16)
 
     def _find_html_file(self, filename: str) -> str | None:
-        """HTML fájl keresése az alkalmazás könyvtárában."""
+        """HTML fájl keresése a Hivatalos könyvtárban."""
         import sys
         
         # Lehetséges helyek (sorrendben)
         possible_paths = [
-            # PyInstaller EXE mellett (program/)
-            os.path.join(os.path.dirname(sys.executable), filename),
-            # Fejlesztői könyvtárban (hirlevel-gmail-archivalas/)
+            # PyInstaller EXE mellett: Hivatalos/ mappa (program/Hivatalos/)
+            os.path.join(os.path.dirname(sys.executable), "Hivatalos", filename),
+            # Fejlesztői könyvtárban: Hivatalos/ mappa
+            os.path.join(str(Path(__file__).parent.parent), "Hivatalos", filename),
+            # Fallback: közvetlen a gyökérben (fejlesztés)
             os.path.join(str(Path(__file__).parent.parent), filename),
-            # program/ mappában az app mellett
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), filename),
         ]
 
         for path in possible_paths:

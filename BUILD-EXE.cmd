@@ -89,10 +89,12 @@ if exist "ADATKEZELESI_TAJEKOZTATO.md" copy /y "ADATKEZELESI_TAJEKOZTATO.md" "pr
 if exist "FELHASZNALASI_FELTETELEK.md" copy /y "FELHASZNALASI_FELTETELEK.md" "program\FELHASZNALASI_FELTETELEK.md" >nul
 if exist "BIZTONSAG_ES_ADATVEDELEM.md" copy /y "BIZTONSAG_ES_ADATVEDELEM.md" "program\BIZTONSAG_ES_ADATVEDELEM.md" >nul
 if exist "LICENSE.md" copy /y "LICENSE.md" "program\LICENSE.md" >nul
-if exist "ADATKEZELESI_TAJEKOZTATO.html" copy /y "ADATKEZELESI_TAJEKOZTATO.html" "program\ADATKEZELESI_TAJEKOZTATO.html" >nul
-if exist "FELHASZNALASI_FELTETELEK.html" copy /y "FELHASZNALASI_FELTETELEK.html" "program\FELHASZNALASI_FELTETELEK.html" >nul
-if exist "BIZTONSAG_ES_ADATVEDELEM.html" copy /y "BIZTONSAG_ES_ADATVEDELEM.html" "program\BIZTONSAG_ES_ADATVEDELEM.html" >nul
-if exist "LICENSE.html" copy /y "LICENSE.html" "program\LICENSE.html" >nul
+REM Jogi dokumentumok a Hivatalos alkönyvtárban
+mkdir "program\Hivatalos"
+if exist "ADATKEZELESI_TAJEKOZTATO.html" copy /y "ADATKEZELESI_TAJEKOZTATO.html" "program\Hivatalos\ADATKEZELESI_TAJEKOZTATO.html" >nul
+if exist "FELHASZNALASI_FELTETELEK.html" copy /y "FELHASZNALASI_FELTETELEK.html" "program\Hivatalos\FELHASZNALASI_FELTETELEK.html" >nul
+if exist "BIZTONSAG_ES_ADATVEDELEM.html" copy /y "BIZTONSAG_ES_ADATVEDELEM.html" "program\Hivatalos\BIZTONSAG_ES_ADATVEDELEM.html" >nul
+if exist "LICENSE.html" copy /y "LICENSE.html" "program\Hivatalos\LICENSE.html" >nul
 
 rmdir /s /q "_build_out" 2>nul
 rmdir /s /q "_build_work" 2>nul
