@@ -60,6 +60,8 @@ REM Ideiglenes dist a projektben, majd atmasoljuk EGYSZERU program\ mappaba
   --hidden-import=app.dpi ^
   --hidden-import=app.single_instance ^
   --hidden-import=app.help_text ^
+  --hidden-import=app.about ^
+  --hidden-import=app.window_util ^
   --hidden-import=pystray ^
   --hidden-import=googleapiclient ^
   --hidden-import=google_auth_oauthlib ^
@@ -84,12 +86,13 @@ if exist "program" (
 )
 mkdir "program"
 xcopy /e /i /y "_build_out\HirlevelKoveto\*" "program\" >nul
-REM Jogi dokumentumok a Hivatalos alkönyvtárban (csak HTML)
+REM Jogi dokumentumok és program leírás a Hivatalos alkönyvtárban (csak HTML)
 mkdir "program\Hivatalos"
 if exist "ADATKEZELESI_TAJEKOZTATO.html" copy /y "ADATKEZELESI_TAJEKOZTATO.html" "program\Hivatalos\ADATKEZELESI_TAJEKOZTATO.html" >nul
 if exist "FELHASZNALASI_FELTETELEK.html" copy /y "FELHASZNALASI_FELTETELEK.html" "program\Hivatalos\FELHASZNALASI_FELTETELEK.html" >nul
 if exist "BIZTONSAG_ES_ADATVEDELEM.html" copy /y "BIZTONSAG_ES_ADATVEDELEM.html" "program\Hivatalos\BIZTONSAG_ES_ADATVEDELEM.html" >nul
 if exist "LICENSE.html" copy /y "LICENSE.html" "program\Hivatalos\LICENSE.html" >nul
+if exist "ROLUNK.html" copy /y "ROLUNK.html" "program\Hivatalos\ROLUNK.html" >nul
 
 rmdir /s /q "_build_out" 2>nul
 rmdir /s /q "_build_work" 2>nul
