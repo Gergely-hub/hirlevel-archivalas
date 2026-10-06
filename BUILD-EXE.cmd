@@ -84,12 +84,7 @@ if exist "program" (
 )
 mkdir "program"
 xcopy /e /i /y "_build_out\HirlevelKoveto\*" "program\" >nul
-if exist "OLVASD.md" copy /y "OLVASD.md" "program\OLVASD.md" >nul
-if exist "ADATKEZELESI_TAJEKOZTATO.md" copy /y "ADATKEZELESI_TAJEKOZTATO.md" "program\ADATKEZELESI_TAJEKOZTATO.md" >nul
-if exist "FELHASZNALASI_FELTETELEK.md" copy /y "FELHASZNALASI_FELTETELEK.md" "program\FELHASZNALASI_FELTETELEK.md" >nul
-if exist "BIZTONSAG_ES_ADATVEDELEM.md" copy /y "BIZTONSAG_ES_ADATVEDELEM.md" "program\BIZTONSAG_ES_ADATVEDELEM.md" >nul
-if exist "LICENSE.md" copy /y "LICENSE.md" "program\LICENSE.md" >nul
-REM Jogi dokumentumok a Hivatalos alkönyvtárban
+REM Jogi dokumentumok a Hivatalos alkönyvtárban (csak HTML)
 mkdir "program\Hivatalos"
 if exist "ADATKEZELESI_TAJEKOZTATO.html" copy /y "ADATKEZELESI_TAJEKOZTATO.html" "program\Hivatalos\ADATKEZELESI_TAJEKOZTATO.html" >nul
 if exist "FELHASZNALASI_FELTETELEK.html" copy /y "FELHASZNALASI_FELTETELEK.html" "program\Hivatalos\FELHASZNALASI_FELTETELEK.html" >nul
