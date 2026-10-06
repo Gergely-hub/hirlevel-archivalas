@@ -78,6 +78,14 @@ if errorlevel 1 (
   exit /b 1
 )
 
+REM HTML dokumentumok előkészítése az _build_out-ban, hogy az xcopy másolja azokat is
+mkdir "_build_out\HirlevelKoveto\Hivatalos" 2>nul
+if exist "ADATKEZELESI_TAJEKOZTATO.html" copy /y "ADATKEZELESI_TAJEKOZTATO.html" "_build_out\HirlevelKoveto\Hivatalos\ADATKEZELESI_TAJEKOZTATO.html" >nul
+if exist "FELHASZNALASI_FELTETELEK.html" copy /y "FELHASZNALASI_FELTETELEK.html" "_build_out\HirlevelKoveto\Hivatalos\FELHASZNALASI_FELTETELEK.html" >nul
+if exist "BIZTONSAG_ES_ADATVEDELEM.html" copy /y "BIZTONSAG_ES_ADATVEDELEM.html" "_build_out\HirlevelKoveto\Hivatalos\BIZTONSAG_ES_ADATVEDELEM.html" >nul
+if exist "LICENSE.html" copy /y "LICENSE.html" "_build_out\HirlevelKoveto\Hivatalos\LICENSE.html" >nul
+if exist "ROLUNK.html" copy /y "ROLUNK.html" "_build_out\HirlevelKoveto\Hivatalos\ROLUNK.html" >nul
+
 if exist "program" rmdir /s /q "program"
 if exist "program" (
   echo Nem tudom torolni a program\ mappat — zarj be minden HirlevelKoveto ablakot, majd ujra.
@@ -85,14 +93,8 @@ if exist "program" (
   exit /b 1
 )
 mkdir "program"
+REM Az xcopy már másolja a Hivatalos mappát, mert az _build_out-ban van
 xcopy /e /i /y "_build_out\HirlevelKoveto\*" "program\" >nul
-REM Jogi dokumentumok és program leírás a Hivatalos alkönyvtárban (csak HTML)
-mkdir "program\Hivatalos"
-if exist "ADATKEZELESI_TAJEKOZTATO.html" copy /y "ADATKEZELESI_TAJEKOZTATO.html" "program\Hivatalos\ADATKEZELESI_TAJEKOZTATO.html" >nul
-if exist "FELHASZNALASI_FELTETELEK.html" copy /y "FELHASZNALASI_FELTETELEK.html" "program\Hivatalos\FELHASZNALASI_FELTETELEK.html" >nul
-if exist "BIZTONSAG_ES_ADATVEDELEM.html" copy /y "BIZTONSAG_ES_ADATVEDELEM.html" "program\Hivatalos\BIZTONSAG_ES_ADATVEDELEM.html" >nul
-if exist "LICENSE.html" copy /y "LICENSE.html" "program\Hivatalos\LICENSE.html" >nul
-if exist "ROLUNK.html" copy /y "ROLUNK.html" "program\Hivatalos\ROLUNK.html" >nul
 
 rmdir /s /q "_build_out" 2>nul
 rmdir /s /q "_build_work" 2>nul
