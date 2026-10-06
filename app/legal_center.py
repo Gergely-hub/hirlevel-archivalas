@@ -112,11 +112,7 @@ class LegalCenterWindow(ctk.CTkToplevel):
         if html_path and os.path.exists(html_path):
             try:
                 # HtmlFrame az alkalmazáson belül
-                html_frame = HtmlFrame(
-                    self.content_frame,
-                    bg="white",
-                    relief="flat",
-                )
+                html_frame = HtmlFrame(self.content_frame)
                 html_frame.pack(fill="both", expand=True, padx=0, pady=0)
 
                 # HTML fájl betöltése
