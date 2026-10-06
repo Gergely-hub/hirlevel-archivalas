@@ -371,6 +371,33 @@ def set_source_tag(source_id: int, tag: str) -> bool:
         return cur.rowcount > 0
 
 
+def delete_message(message_id: int) -> bool:
+    """Egy helyi levél törlése. True = volt ilyen sor."""
+    with connect() as conn:
+        cur = conn.execute("DELETE FROM messages WHERE id = ?", (int(message_id),))
+        return cur.rowcount > 0
+
+
+def delete_messages_for_source(source_id: int) -> int:
+    """A forrás összes helyi levele — a forrás sor megmarad. Vissza: törölt darabszám."""
+    with connect() as conn:
+        cur = conn.execute(
+            "DELETE FROM messages WHERE source_id = ?",
+            (int(source_id),),
+        )
+        return int(cur.rowcount or 0)
+
+
+def delete_source(source_id: int) -> int:
+    """Forrás + összes levele végleg. Vissza: törölt levelek száma."""
+    sid = int(source_id)
+    with connect() as conn:
+        cur = conn.execute("DELETE FROM messages WHERE source_id = ?", (sid,))
+        n = int(cur.rowcount or 0)
+        conn.execute("DELETE FROM sources WHERE id = ?", (sid,))
+        return n
+
+
 def insert_message(
     *,
     source_id: int,

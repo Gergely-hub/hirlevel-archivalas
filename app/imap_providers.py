@@ -14,21 +14,21 @@ class ImapProvider:
     hint: str = ""
 
 
-# Thunderbird-szerű előre kitöltött IMAP profilok
+# Thunderbird-szerű előre kitöltött IMAP profilok (ProtonMail nincs — Bridge kellene)
 PROVIDERS: list[ImapProvider] = [
     ImapProvider(
         key="gmail",
         label="Gmail",
         host="imap.gmail.com",
         help_url="https://myaccount.google.com/apppasswords",
-        hint="Google alkalmazásjelszó kell (2FA után).",
+        hint="Google alkalmazásjelszó kell (2FA után). Nem a szokásos Gmail-jelszó.",
     ),
     ImapProvider(
         key="outlook",
         label="Outlook / Hotmail / Live",
         host="outlook.office365.com",
         help_url="https://account.microsoft.com/security",
-        hint="Microsoft fióknál gyakran alkalmazásjelszó vagy IMAP engedély kell.",
+        hint="Microsoft: IMAP engedély + gyakran alkalmazásjelszó. Céges Exchange néha nem enged IMAP-ot.",
     ),
     ImapProvider(
         key="yahoo",
@@ -59,10 +59,21 @@ PROVIDERS: list[ImapProvider] = [
         hint="Citromail fiók jelszava.",
     ),
     ImapProvider(
+        key="vipmail",
+        label="Vipmail",
+        host="imap.vipmail.hu",
+        help_url="https://vipmail.hu/",
+        hint="Vipmail fiók jelszava (IMAP).",
+    ),
+    ImapProvider(
         key="custom",
         label="Egyéni IMAP (mint Thunderbird)",
         host="",
-        hint="Add meg a szolgáltató IMAP szerverét (host + port).",
+        help_url="https://support.mozilla.org/hu/kb/automatic-account-configuration",
+        hint=(
+            "Add meg a szolgáltató IMAP szerverét (host + port, általában 993).\n"
+            "ProtonMail nem támogatott (nincs sima IMAP Bridge nélkül)."
+        ),
     ),
 ]
 
@@ -86,6 +97,7 @@ _DOMAIN_HINTS: dict[str, str] = {
     "mac.com": "icloud",
     "freemail.hu": "freemail",
     "citromail.hu": "citromail",
+    "vipmail.hu": "vipmail",
 }
 
 
@@ -127,3 +139,9 @@ def resolve_imap(
 def provider_label(key: str) -> str:
     p = PROVIDERS_BY_KEY.get((key or "").lower())
     return p.label if p else "Egyéni IMAP"
+
+
+def supported_providers_summary() -> str:
+    """Rövid lista súgóhoz / fiókablakhoz."""
+    names = [p.label for p in PROVIDERS if p.key != "custom"]
+    return ", ".join(names)

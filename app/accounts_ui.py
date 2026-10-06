@@ -14,6 +14,7 @@ from app.imap_providers import (
     guess_provider_key,
     provider_label,
     resolve_imap,
+    supported_providers_summary,
 )
 from app.paths import CONFIG_PATH
 
@@ -65,10 +66,16 @@ class AccountsWindow(ctk.CTkToplevel):
 
         ctk.CTkLabel(
             self,
-            text="IMAP fiókok — mint Thunderbirdben: szolgáltató vagy egyéni szerver.\n"
-            "Sok helyen alkalmazásjelszó kell (nem a sima bejelentkezési jelszó).",
+            text=(
+                "IMAP fiókok — mint Thunderbirdben. Több fiók is felvehető; "
+                "a „Most ellenőriz” mindegyiken végigmegy.\n"
+                f"Előre kitöltve: {supported_providers_summary()}, vagy egyéni szerver.\n"
+                "Sok helyen alkalmazásjelszó kell (nem a sima bejelentkezési jelszó). "
+                "ProtonMail nem támogatott."
+            ),
             justify="left",
             anchor="w",
+            wraplength=560,
         ).pack(fill="x", padx=16, pady=(16, 8))
 
         self.help_btn = ctk.CTkButton(

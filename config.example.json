@@ -2,6 +2,7 @@
   "check_interval_minutes": 15,
   "start_minimized_to_tray": true,
   "appearance_mode": "Dark",
+  "ui_theme": "dark",
   "sync_max_per_source": 40,
   "import_max_per_source": 500,
   "backup_auto": false,
@@ -12,11 +13,20 @@
   "accounts": [
     {
       "id": "fo",
-      "label": "Fő fiók",
+      "label": "Fő Gmail",
       "email": "SAJAT@gmail.com",
       "app_password": "xxxx xxxx xxxx xxxx",
       "provider": "gmail",
       "imap_host": "imap.gmail.com",
+      "imap_port": 993
+    },
+    {
+      "id": "masodik",
+      "label": "Másik fiók (példa)",
+      "email": "te@outlook.com",
+      "app_password": "xxxx xxxx xxxx xxxx",
+      "provider": "outlook",
+      "imap_host": "outlook.office365.com",
       "imap_port": 993
     }
   ]

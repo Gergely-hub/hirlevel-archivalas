@@ -15,6 +15,9 @@ def _autostart_command() -> tuple[str, str]:
     """(target, arguments)"""
     if getattr(sys, "frozen", False):
         return sys.executable, "--tray"
+    exe = ROOT / "program" / "HirlevelKoveto.exe"
+    if exe.is_file():
+        return str(exe), "--tray"
     return sys.executable, f'"{ROOT / "main.py"}" --tray'
 
 
