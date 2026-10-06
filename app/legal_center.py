@@ -144,12 +144,16 @@ class LegalCenterWindow(ctk.CTkToplevel):
 
     def _find_html_file(self, filename: str) -> str | None:
         """HTML fájl keresése az alkalmazás könyvtárában."""
-        # Lehetséges helyek
+        import sys
+        
+        # Lehetséges helyek (sorrendben)
         possible_paths = [
-            # Az alkalmazás könyvtárában (exe mellett)
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), filename),
-            # Fejlesztői könyvtárban
+            # PyInstaller EXE mellett (program/)
+            os.path.join(os.path.dirname(sys.executable), filename),
+            # Fejlesztői könyvtárban (hirlevel-gmail-archivalas/)
             os.path.join(str(Path(__file__).parent.parent), filename),
+            # program/ mappában az app mellett
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), filename),
         ]
 
         for path in possible_paths:
