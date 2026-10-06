@@ -1486,6 +1486,11 @@ class App(ctk.CTk):
                         "label": "Jogi Dokumentumok Központ…",
                         "command": self._show_legal_center,
                     },
+                    {
+                        "kind": "command",
+                        "label": "GitHub Issues (böngészőben)…",
+                        "command": self._open_github_issues,
+                    },
                     {"kind": "separator"},
                     {
                         "kind": "command",
@@ -1541,6 +1546,10 @@ class App(ctk.CTk):
         """Jogi Dokumentumok Központ megnyitása (tabbed dialógus ablak)."""
         from app.legal_center import show_legal_center
         show_legal_center(self)
+
+    def _open_github_issues(self) -> None:
+        """GitHub Issues megnyitása az alapértelmezett böngészőben."""
+        webbrowser.open("https://github.com/Gergely-hub/hirlevel-archivalas/issues")
 
     def _backup_initial_dir(self) -> str:
         cfg = load_config()
