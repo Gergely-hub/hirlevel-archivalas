@@ -61,6 +61,7 @@ REM Ideiglenes dist a projektben, majd atmasoljuk EGYSZERU program\ mappaba
   --hidden-import=app.single_instance ^
   --hidden-import=app.help_text ^
   --hidden-import=app.about ^
+  --hidden-import=app.usage_guide ^
   --hidden-import=app.window_util ^
   --hidden-import=pystray ^
   --hidden-import=googleapiclient ^
@@ -85,6 +86,7 @@ if exist "FELHASZNALASI_FELTETELEK.html" copy /y "FELHASZNALASI_FELTETELEK.html"
 if exist "BIZTONSAG_ES_ADATVEDELEM.html" copy /y "BIZTONSAG_ES_ADATVEDELEM.html" "_build_out\HirlevelKoveto\Hivatalos\BIZTONSAG_ES_ADATVEDELEM.html" >nul
 if exist "LICENSE.html" copy /y "LICENSE.html" "_build_out\HirlevelKoveto\Hivatalos\LICENSE.html" >nul
 if exist "ROLUNK.html" copy /y "ROLUNK.html" "_build_out\HirlevelKoveto\Hivatalos\ROLUNK.html" >nul
+if exist "HASZNALATI_UTMUTATO.html" copy /y "HASZNALATI_UTMUTATO.html" "_build_out\HirlevelKoveto\Hivatalos\HASZNALATI_UTMUTATO.html" >nul
 
 if exist "program" rmdir /s /q "program"
 if exist "program" (

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hírlevél Követő — Használati Útmutató</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+            line-height: 1.7;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 100%;
+            padding: 24px;
+            background: white;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+            border-bottom: 3px solid #2196F3;
+            padding-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #1976D2;
+            margin-bottom: 6px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section h2 {
+            font-size: 20px;
+            color: #1976D2;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-left: 4px solid #2196F3;
+            padding-left: 12px;
+        }
+
+        .section h3 {
+            font-size: 16px;
+            color: #1565C0;
+            margin-top: 18px;
+            margin-bottom: 10px;
+        }
+
+        .section p, .section ul, .section ol {
+            font-size: 14px;
+            line-height: 1.8;
+            color: #444;
+            margin-bottom: 12px;
+        }
+
+        .section ul, .section ol {
+            margin-left: 20px;
+        }
+
+        .section li {
+            margin-bottom: 8px;
+        }
+
+        .step {
+            background: #F5F5F5;
+            padding: 16px;
+            border-radius: 6px;
+            margin: 14px 0;
+            border-left: 4px solid #2196F3;
+        }
+
+        .step strong {
+            color: #1976D2;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .highlight {
+            background: #E3F2FD;
+            padding: 14px;
+            border-radius: 6px;
+            border-left: 4px solid #2196F3;
+            margin: 12px 0;
+        }
+
+        .highlight strong {
+            color: #1565C0;
+        }
+
+        .tip {
+            background: #F1F8E9;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 4px solid #4CAF50;
+            margin: 12px 0;
+            font-size: 13px;
+        }
+
+        .tip strong {
+            color: #2E7D32;
+        }
+
+        .warning {
+            background: #FFF3E0;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 4px solid #FF9800;
+            margin: 12px 0;
+            font-size: 13px;
+        }
+
+        .warning strong {
+            color: #E65100;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid #eee;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+        }
+
+        table th, table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        table th {
+            background: #F5F5F5;
+            font-weight: bold;
+            color: #1976D2;
+        }
+
+        code {
+            background: #ECEFF1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: "Courier New", monospace;
+            font-size: 12px;
+            color: #37474F;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📖 Hírlevél Követő — Használati Útmutató</h1>
+            <p>Lépésről lépésre a hírlevél-archiváláshoz</p>
+        </div>
+
+        <div class="section">
+            <h2>🚀 Gyors Kezdés</h2>
+            <p>Az alkalmazás indítása után három lépésben elkezdhetsz hírlevéleket archiválni:</p>
+            <ol>
+                <li><strong>Fiók hozzáadása</strong> — IMAP szerver adataival</li>
+                <li><strong>Mappák szinkronizálása</strong> — Válaszd ki, mely mappákból szeretnél letölteni</li>
+                <li><strong>Archiválás</strong> — Az e-mailek automatikusan vagy manuálisan letöltődnek</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>1️⃣ Első Fiók Hozzáadása</h2>
+            
+            <h3>Lépés 1: Nyisd meg a "Levelező fiókok" ablakot</h3>
+            <div class="step">
+                <strong>📧 Beállítások → Levelező fiókok (IMAP)</strong>
+                <p>Vagy nyomj <code>Ctrl+L</code> ha beállítottad.</p>
+            </div>
+
+            <h3>Lépés 2: Add hozzá az első fiókod</h3>
+            <p>A "Levelező fiókok" ablakban kattints az <strong>"+ Hozzáadás"</strong> gombra.</p>
+            
+            <h3>Lépés 3: Válaszd ki az e-mail providert</h3>
+            <p>Az alkalmazás támogatja a legismertebb szolgáltatókat:</p>
+            <table>
+                <tr>
+                    <th>Provider</th>
+                    <th>IMAP szerver</th>
+                    <th>Port</th>
+                </tr>
+                <tr>
+                    <td><strong>Gmail</strong></td>
+                    <td>imap.gmail.com</td>
+                    <td>993</td>
+                </tr>
+                <tr>
+                    <td><strong>Outlook / Hotmail</strong></td>
+                    <td>imap-mail.outlook.com</td>
+                    <td>993</td>
+                </tr>
+                <tr>
+                    <td><strong>Egyéb (pl. saját domain)</strong></td>
+                    <td>Manuálisan adható meg</td>
+                    <td>993 (SSL)</td>
+                </tr>
+            </table>
+
+            <h3>Lépés 4: Add meg a jelszavad</h3>
+            <div class="warning">
+                <strong>⚠️ Biztonsági megjegyzés:</strong> A jelszó az operációs rendszer jelszókezelőjében (Windows Credential Manager) tárolódik. Soha nem kerül internetre vagy szerverekre.
+            </div>
+
+            <h3>Lépés 5: Ellenőrizd az IMAP hozzáférést</h3>
+            <p>Az alkalmazás tesztelni fogja a kapcsolatot. Ha sikeres, kattints az <strong>"Szinkronizálás"</strong> gombra.</p>
+        </div>
+
+        <div class="section">
+            <h2>2️⃣ Mappák Szinkronizálása</h2>
+            
+            <h3>Szinkronizálási folyamat</h3>
+            <p>Miután a fiók összekapcsolódott, az alkalmazás letölti az IMAP mappákat.</p>
+            
+            <div class="step">
+                <strong>Szinkronizálás indítása</strong>
+                <p>Válaszd ki a szinkronizálni kívánt mappákat (pl. "Inbox", "Promotions", "Updates"), majd kattints az <strong>"Szinkronizálás"</strong> gombra.</p>
+            </div>
+
+            <div class="tip">
+                <strong>💡 Tipp:</strong> Az első szinkronizálás hosszabb időt vehet igénybe, ha sok e-maild van. A később futó szinkronizálások csak az új levéleket töltik le.
+            </div>
+
+            <h3>Automatikus szinkronizálás</h3>
+            <p>Beállíthatod az alkalmazást, hogy rendszeres időközönként automatikusan szinkronizálja az új leveleket:</p>
+            <ol>
+                <li>Menj a <strong>Beállítások</strong>-hez</li>
+                <li>Válaszd a <strong>"Szinkronizálás"</strong> lapot</li>
+                <li>Állítsd be az intervallumot (pl. 15 perc, 1 óra)</li>
+                <li>A tálcaikon akkor lesz zöld, ha automatikus szinkronizálás aktív</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>3️⃣ Az Archiváltat Böngészése</h2>
+            
+            <h3>Levelek megtekintése</h3>
+            <p>Az alkalmazás bal oldalán a következő szervezési módok érhetők el:</p>
+            
+            <h3>Szűrés lehetőségek:</h3>
+            <ul>
+                <li><strong>Felhasználó</strong> — Melyik IMAP fiókból</li>
+                <li><strong>Forrás</strong> — Melyik mappából (Inbox, Archive, stb.)</li>
+                <li><strong>Keresés</strong> — E-mail címre, tárgyra, szövegre</li>
+                <li><strong>Dátum szűrés</strong> — Időtartomány megadása</li>
+            </ul>
+
+            <h3>Levél megnyitása</h3>
+            <p>Kattints egy levélre a listából. Az alkalmazás megnyitja az <strong>"Olvasó"</strong> nézetet:</p>
+            <ul>
+                <li><strong>Tárgy, feladó, dátum</strong> — Metaadatok</li>
+                <li><strong>Tartalmi terület</strong> — Az e-mail szövege / HTML megjelenítés</li>
+                <li><strong>Linkek gomb</strong> — Az e-mailben lévő összes link listázása</li>
+                <li><strong>Böngésző gomb</strong> — A levél megnyitása az alapértelmezett böngészőben</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>4️⃣ Adatkezelés & Törlés</h2>
+            
+            <h3>Levél törlése</h3>
+            <p>Egy levél jobb oldalán kattints a <strong>"Törlés"</strong> gombra. A levél eltávolítódik a helyi adatbázisból (de az e-mail fiók szerveren marad, csak az adatbázisban törlődik).</p>
+
+            <h3>Teljes forrás törlése</h3>
+            <p>Ha egy teljes mappát (pl. "Promotions") szeretnél eltávolítani az összes levelével:</p>
+            <ol>
+                <li>Válaszd ki a forrást a bal oldali listáról</li>
+                <li>Kattints a jobb gomb menüre</li>
+                <li>Válaszd az <strong>"Összes levél törlése"</strong> opciót</li>
+            </ol>
+
+            <h3>IMAP hitelesítési adatok törlése</h3>
+            <p>Ha már nem szeretnéd szinkronizálni egy fiók leveleit, de meg szeretnéd tartani az adatbázist:</p>
+            <ol>
+                <li>Menj a <strong>Beállítások → Levelező fiókok</strong>-ra</li>
+                <li>Válaszd a fiókot és kattints az <strong>"Hitelesítés törlése"</strong> gombra</li>
+                <li>A korábban letöltött levelek maradnak az adatbázisban</li>
+            </ol>
+
+            <div class="warning">
+                <strong>⚠️ Figyelem:</strong> A törlés <strong>véglegesen</strong> eltávolítja az adatokat az alkalmazásból. Az e-mail szerver sértetlenül marad, de az adatbázisban nincs visszafordítás.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>5️⃣ Téma & Megjelenés</h2>
+            
+            <h3>Téma váltása</h3>
+            <p>Az alkalmazás több előre meghatározott témát kínál:</p>
+            <ol>
+                <li>Menj a <strong>Beállítások → Megjelenés</strong>-hez</li>
+                <li>Válaszd a kívánt témát (pl. "Sötét", "Világos", "Tompapapír")</li>
+                <li>Az alkalmazás azonnal váltja a megjelenést</li>
+            </ol>
+
+            <div class="tip">
+                <strong>💡 Tipp:</strong> Estére javasolt a sötét téma az szemeinek kímélése érdekében.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>6️⃣ Mentés & Backup</h2>
+            
+            <h3>Adatbázis biztonsági másolata</h3>
+            <p>Az alkalmazás támogatja a mentést két helyre:</p>
+            
+            <h3>A. Helyi mentés (alapértelmezett)</h3>
+            <p>Az adatbázis a gépedre kerül: <code>AppData\Local\HirlevelKoveto\data\</code></p>
+            <p>Ez azt jelenti, hogy az adatok a számítógépedhez kötöttek. Ha új gépre költöztetsz, az adatokat manuálisan kell áthozni.</p>
+
+            <h3>B. Google Drive mentés</h3>
+            <p>Az alkalmazás képes Google Drive-ra is menteni az adatbázist. Ehhez:</p>
+            <ol>
+                <li>Menj a <strong>Beállítások → Mentés</strong>-hez</li>
+                <li>Válaszd a <strong>"Google Drive"</strong> opciót</li>
+                <li>Kattints az <strong>"Előkészítés"</strong> gombra a Google azonosítás bejelentkezéshez</li>
+                <li>Adott időközönként a rendszer automatikusan ment a Google Drive-ra</li>
+            </ol>
+
+            <div class="warning">
+                <strong>⚠️ Biztonsági megjegyzés:</strong> A Google Drive mentés nem védi az IMAP jelszavadat. Az csak az adatbázist másolja. Az IMAP hitelesítés az operációs rendszer jelszókezelőjében marad.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>❓ GYIK — Gyakran Ismételt Kérdések</h2>
+            
+            <h3>Mit jelent a "Szinkronizálás"?</h3>
+            <p>Az alkalmazás csatlakozik az IMAP szerverhez és letölti az összes levelet az adatbázisba. Az első szinkronizálás hosszabb időt vehet igénybe; később már csak az új leveleket tölti le.</p>
+
+            <h3>Szinkronizáláskor a program lefagy?</h3>
+            <p>A szinkronizálás a háttérben fut. Ha nagyobb mappákat szinkronizálsz (1000+ levél), az eltarthat egy-két percig. A program nem reagál, de ez normális — csak várj!</p>
+
+            <h3>Hogyan keresek egy konkrét levelet?</h3>
+            <p>Használd a keresősávot a bal oldalt. Kereshetsz:</p>
+            <ul>
+                <li>E-mail cím részletére (pl. "gmail")</li>
+                <li>Levél tárgyára (pl. "heti hírlevél")</li>
+                <li>Szöveg tartalmára (pl. "kedvezmény")</li>
+            </ul>
+
+            <h3>Hogyan tárolódnak az adatok?</h3>
+            <p>Az adatbázis SQLite formátumban a következő helyen áll: <code>C:\Users\[NÉV]\AppData\Local\HirlevelKoveto\data\hirlevelek.db</code></p>
+
+            <h3>Lehet-e egész nap szinkronizálgatni?</h3>
+            <p>Igen, de az IMAP szerverek korlátozhatnak. Ha túl sűrűn próbálkozol (pl. percenként), az "account locked" hibát kapsz. Javasolt: 15 perc vagy hosszabb intervallum.</p>
+
+            <h3>Mi történik, ha a WLAN elszakad szinkronizálás közben?</h3>
+            <p>Az alkalmazás meg fog állni, és a letöltött levelek az adatbázisban maradnak. A következő szinkronizáláskor folytatja az előző helyről.</p>
+        </div>
+
+        <div class="section">
+            <h2>🔐 Biztonság & Adatvédelem</h2>
+            
+            <h3>Hol tárolódik a jelszavam?</h3>
+            <p>Az IMAP jelszó <strong>nem az alkalmazásban</strong> tárolódik. Az operációs rendszer jelszókezelőjét (Windows Credential Manager) használjuk, amely titkosított módon tárolja.</p>
+
+            <h3>Küld az alkalmazás adatot a szerverekre?</h3>
+            <p><strong>Nem!</strong> Az alkalmazás 100%-ban lokális. Az egyetlen kapcsolat az IMAP szerverrel (pl. Gmail) történik az e-mailek letöltésére. Semmilyen telemetria, nyomkövetés vagy külső szerver nem érintett.</p>
+
+            <h3>Mit ajánlsz a biztonsági kockázatokra?</h3>
+            <p>Lásd a <strong>Jogi Dokumentumok Központ → Biztonság és Adatvédelem</strong> oldalon részletes információkat.</p>
+        </div>
+
+        <div class="footer">
+            <p>Hírlevél Követő — Használati Útmutató | v2026.10</p>
+            <p>Ha kérdésed van, nyiss egy GitHub Issue-t: Súgó → GitHub Issues (böngészőben)</p>
+        </div>
+    </div>
+</body>
+</html>

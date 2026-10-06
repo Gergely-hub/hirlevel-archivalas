@@ -1488,6 +1488,11 @@ class App(ctk.CTk):
                     },
                     {
                         "kind": "command",
+                        "label": "Használati Útmutató…",
+                        "command": self._show_usage_guide,
+                    },
+                    {
+                        "kind": "command",
                         "label": "Jogi Dokumentumok Központ…",
                         "command": self._show_legal_center,
                     },
@@ -1495,12 +1500,6 @@ class App(ctk.CTk):
                         "kind": "command",
                         "label": "GitHub Issues (böngészőben)…",
                         "command": self._open_github_issues,
-                    },
-                    {"kind": "separator"},
-                    {
-                        "kind": "command",
-                        "label": "Névjegy…",
-                        "command": lambda: self._show_help("nevjegy"),
                     },
                 ],
             ),
@@ -1552,6 +1551,11 @@ class App(ctk.CTk):
         """A Programról ablak megnyitása."""
         from app.about import show_about
         show_about(self)
+
+    def _show_usage_guide(self) -> None:
+        """Használati Útmutató megnyitása."""
+        from app.usage_guide import show_usage_guide
+        show_usage_guide(self)
 
     def _show_legal_center(self) -> None:
         """Jogi Dokumentumok Központ megnyitása (tabbed dialógus ablak)."""
