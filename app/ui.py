@@ -1483,6 +1483,11 @@ class App(ctk.CTk):
                     {"kind": "separator"},
                     {
                         "kind": "command",
+                        "label": "A Programról…",
+                        "command": self._show_about,
+                    },
+                    {
+                        "kind": "command",
                         "label": "Jogi Dokumentumok Központ…",
                         "command": self._show_legal_center,
                     },
@@ -1531,9 +1536,10 @@ class App(ctk.CTk):
         }
         title = titles.get(which, "Súgó")
         body = bodies.get(which, ht.SÚGÓ_ROVID)
+        from app.window_util import center_window
         win = ctk.CTkToplevel(self)
         win.title(title)
-        win.geometry("560x480")
+        center_window(win, 640, 540)
         win.transient(self)
         box = ctk.CTkTextbox(win, wrap="word", font=self._body_font(13))
         box.pack(fill="both", expand=True, padx=12, pady=(12, 6))
@@ -1541,6 +1547,11 @@ class App(ctk.CTk):
         box.configure(state="disabled")
         ctk.CTkButton(win, text="Bezárás", width=100, command=win.destroy).pack(pady=(0, 12))
         win.after(50, win.lift)
+
+    def _show_about(self) -> None:
+        """A Programról ablak megnyitása."""
+        from app.about import show_about
+        show_about(self)
 
     def _show_legal_center(self) -> None:
         """Jogi Dokumentumok Központ megnyitása (tabbed dialógus ablak)."""
@@ -1582,12 +1593,13 @@ class App(ctk.CTk):
     def _gdrive_setup_wizard(self) -> None:
         """Egyszeri előkészítés: Google azonosító JSON, utána saját fiókos belépés."""
         import webbrowser
+        from app.window_util import center_window
 
         from app import gdrive_backup as gd
 
         win = ctk.CTkToplevel(self)
         win.title("Google Drive előkészítés")
-        win.geometry("580x520")
+        center_window(win, 620, 580)
         win.transient(self)
 
         ctk.CTkLabel(

@@ -54,7 +54,8 @@ class AccountsWindow(ctk.CTkToplevel):
     def __init__(self, master: Any, on_saved: Optional[Callable[[], None]] = None) -> None:
         super().__init__(master)
         self.title("Levelező fiókok (IMAP)")
-        self.geometry("620x640")
+        from app.window_util import center_window
+        center_window(self, 700, 680)
         self.minsize(520, 560)
         self._on_saved = on_saved
         self._selected_id: Optional[str] = None

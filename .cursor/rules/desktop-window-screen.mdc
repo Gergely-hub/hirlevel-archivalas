@@ -1,0 +1,17 @@
+---
+description: Windows/Linux asztali ablak- és képernyőkezelés — munkaterület, DPI, tálca
+alwaysApply: true
+---
+
+# Asztali ablak / képernyő (tanulság)
+
+Elsőre így csináld — ne órákig javítsd utólag.
+
+1. **Induláskor = munkaterület** (képernyő − tálca/dock). Nincs fix `1280×760` majd ugrás.
+2. **Nincs „tervezési felbontás”.** A layout töltse a work area-t (bármely méret / 4K).
+3. **Címsor nélkül:** ─ □ ✕ a menüsorban; méret = work area. Ne `SW_MAXIMIZE` / teljes monitor — az eltakarja a tálcát.
+4. **DPI:** OS awareness igen; toolkit `window_scaling` × OS skála **ne** egyszerre (jobb szél levágódik).
+5. **Szöveg elférjen** — ne túl keskeny fix gombok (magyar címkék).
+6. **Új build előtt:** tálca → Kilépés; egy példány; checklist: tálca látszik, jobb szél OK, nincs nem kért címsor.
+
+Tiltott: fix induló geometry mint cél; frameless + tálcát eltakaró maximalizálás; „javítás” címsor visszaadásával, ha a kérés címsor nélküli volt.

@@ -7,6 +7,8 @@ from tkinterweb import HtmlFrame
 import os
 from pathlib import Path
 
+from app.window_util import center_window
+
 
 class LegalCenterWindow(ctk.CTkToplevel):
     """Jogi dokumentumok megjelenítésére szolgáló ablak (tabbed interface)."""
@@ -14,7 +16,7 @@ class LegalCenterWindow(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("Jogi Dokumentumok Központ")
-        self.geometry("1000x700")
+        center_window(self, 1100, 750)
         self.minsize(800, 500)
 
         # Ablak közepítése

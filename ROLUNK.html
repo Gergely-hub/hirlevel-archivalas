@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hírlevél Követő — A programról</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+            line-height: 1.7;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 100%;
+            padding: 24px;
+            background: white;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+            border-bottom: 3px solid #2196F3;
+            padding-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #1976D2;
+            margin-bottom: 6px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .section {
+            margin-bottom: 28px;
+        }
+
+        .section h2 {
+            font-size: 18px;
+            color: #1976D2;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-left: 4px solid #2196F3;
+            padding-left: 12px;
+        }
+
+        .section p, .section ul {
+            font-size: 14px;
+            line-height: 1.8;
+            color: #444;
+            margin-bottom: 12px;
+        }
+
+        .section ul {
+            margin-left: 20px;
+        }
+
+        .section li {
+            margin-bottom: 8px;
+        }
+
+        .highlight {
+            background: #E3F2FD;
+            padding: 16px;
+            border-radius: 6px;
+            border-left: 4px solid #2196F3;
+            margin: 16px 0;
+        }
+
+        .highlight strong {
+            color: #1565C0;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 16px 0;
+        }
+
+        .feature-item {
+            background: #F5F5F5;
+            padding: 12px;
+            border-radius: 6px;
+            border-top: 3px solid #2196F3;
+        }
+
+        .feature-item strong {
+            color: #1976D2;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .feature-item p {
+            font-size: 13px;
+            color: #555;
+            margin: 0;
+        }
+
+        .tech {
+            background: #ECEFF1;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: "Courier New", monospace;
+            color: #37474F;
+            margin: 12px 0;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid #eee;
+        }
+
+        a {
+            color: #1976D2;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📧 Hírlevél Követő</h1>
+            <p>Saját kezűleg irányítható, felhőmentes hírlevél-archiválás</p>
+        </div>
+
+        <div class="section">
+            <h2>🎯 Mi ez?</h2>
+            <p>
+                A <strong>Hírlevél Követő</strong> egy könnyű, nyílt forráskódú desktop alkalmazás, amely segít 
+                <strong>hírlevéleket és e-maileket kezelni és archiválni</strong>. Nem kell többé a Gmail-ben 
+                bolyongani, amikor az összes levelezésed egy helyen elérhető.
+            </p>
+            <div class="highlight">
+                <strong>💡 Lényeg:</strong> Az alkalmazás közvetlenül az IMAP-on (Gmail, Outlook, egyéb) keresztül 
+                csatlakozik, <strong>100%-ban lokálisan</strong> feldolgozza az adatokat, és a számítógépre menti azokat.
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>✨ Legfőbb funkciók</h2>
+            <div class="features">
+                <div class="feature-item">
+                    <strong>📥 IMAP szinkronizálás</strong>
+                    <p>Automatikus vagy manuális szinkronizálás IMAP-alapú postafiók-ból</p>
+                </div>
+                <div class="feature-item">
+                    <strong>🗂️ Szervezés</strong>
+                    <p>Felhasználók, források, címkék, és keresési lehetőségek</p>
+                </div>
+                <div class="feature-item">
+                    <strong>💾 Helyi adatbázis</strong>
+                    <p>Minden adat az <strong>AppData</strong>-ban marad — semmilyen felhő vagy szerver</p>
+                </div>
+                <div class="feature-item">
+                    <strong>🛡️ Privát</strong>
+                    <p>Nyílt forráskódú (MIT licenc), semmilyen telemetria vagy nyomkövetés</p>
+                </div>
+                <div class="feature-item">
+                    <strong>📤 Export</strong>
+                    <p>Levelek letöltésére és mentésére adódik lehetőség</p>
+                </div>
+                <div class="feature-item">
+                    <strong>🎨 Témák</strong>
+                    <p>Világos és sötét módok, valamint egyedi téma-választási lehetőség</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🔐 Adatkezelés & Biztonság</h2>
+            <ul>
+                <li><strong>Helyi feldolgozás:</strong> Az IMAP jelszó és az összes e-mail a számítógépeden marad.</li>
+                <li><strong>Titkosítás:</strong> Az IMAP szerver TLS/SSL-en keresztül kommunikál az alkalmazással.</li>
+                <li><strong>Jelszó:</strong> Az IMAP jelszó az operációs rendszer jelszókezelőjében tárolódik (ha elérhető).</li>
+                <li><strong>Nyílt forráskód:</strong> A kód elérhető a GitHub-on — mindenki ellenőrizheti.</li>
+                <li><strong>GDPR-kompatibilis:</strong> Az adatok kezelésére vonatkozó teljes tájékoztató elérhető a Jogi Dokumentumok között.</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>🏗️ Technológia</h2>
+            <div class="tech">
+                Python 3.13 • CustomTkinter (UI) • SQLite (adatbázis)<br>
+                IMAP (e-mail szinkronizálás) • PyInstaller (megosztható exe)
+            </div>
+            <p>
+                Az alkalmazás <strong>Windows-on működik</strong> standalone executable-ként, 
+                fejlesztésekor pedig Python-ként futtatható.
+            </p>
+        </div>
+
+        <div class="section">
+            <h2>📦 Telepítés & Használat</h2>
+            <ul>
+                <li>Töltsd le az <code>HirlevelKoveto.exe</code> fájlt</li>
+                <li>Futtasd az alkalmazást</li>
+                <li>Add meg az IMAP szerver adatait (Gmail, Outlook, stb.)</li>
+                <li>Válassz mappákat szinkronizálásra</li>
+                <li>Kész! Az adatok a számítógépedre mentődnek</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>🐛 Problémák vagy javaslatok?</h2>
+            <p>
+                Légy szíves jelezd az alkalmazás <strong>Súgó → GitHub Issues (böngészőben)</strong> menüjében. 
+                Szívesen hallunk bugokról, hiányzó funkciókról, vagy bármilyen visszajelzésről!
+            </p>
+        </div>
+
+        <div class="section">
+            <h2>📄 Jogi információk</h2>
+            <ul>
+                <li><strong>Licenc:</strong> MIT — szabadon használható, módosítható, terjeszthető</li>
+                <li><strong>Felhasználási feltételek:</strong> Lásd a Jogi Dokumentumok Központ ablakban</li>
+                <li><strong>Adatkezelési tájékoztatás:</strong> Lásd a Jogi Dokumentumok Központ ablakban</li>
+                <li><strong>Felelősséghárítás:</strong> Az alkalmazást úgy használd, ahogy van — teljes felelősség a felhasználón</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>Hírlevél Követő — A magánélethez visszatérés, egy levelezéskor 📧</p>
+            <p>GitHub: <a href="https://github.com/Gergely-hub/hirlevel-archivalas">Gergely-hub/hirlevel-archivalas</a></p>
+        </div>
+    </div>
+</body>
+</html>
