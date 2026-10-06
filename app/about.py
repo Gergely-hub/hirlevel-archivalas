@@ -85,11 +85,16 @@ class AboutWindow(ctk.CTkToplevel):
         close_button.pack(pady=6)
 
     def _find_html_file(self, filename: str) -> str | None:
-        """HTML fájl keresése."""
+        """HTML fájl keresése a Hivatalos könyvtárban vagy közvetlenül."""
         import sys
         
+        # Lehetséges helyek (sorrendben)
         possible_paths = [
-            os.path.join(os.path.dirname(sys.executable), filename),
+            # PyInstaller EXE mellett: Hivatalos/ mappa
+            os.path.join(os.path.dirname(sys.executable), "Hivatalos", filename),
+            # Fejlesztői könyvtárban: Hivatalos/ mappa
+            os.path.join(str(Path(__file__).parent.parent), "Hivatalos", filename),
+            # Fallback: közvetlenül a gyökérben (fejlesztés)
             os.path.join(str(Path(__file__).parent.parent), filename),
         ]
 
