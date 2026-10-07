@@ -337,21 +337,29 @@ class AccountsWindow(ctk.CTkToplevel):
         auth_method = (self.auth_method_var.get() or "password").lower()
 
         if not email or "@" not in email:
-            self.hint.configure(text="Adj meg érvényes e-mail címet.")
+            msg = "❌ Adj meg érvényes e-mail címet!"
+            self.hint.configure(text=msg, text_color="#FF6B6B")
+            self.after(3000, lambda: self.hint.configure(text=f"Mentés ide: {CONFIG_PATH}", text_color=("gray40", "gray65")))
             return
         
         # OAuth2 = jelszó opcionális; Jelszó = kötelező
         is_oauth = "oauth" in auth_method
         if not is_oauth and (not password or len(password.replace(" ", "")) < 8):
-            self.hint.configure(text="A jelszó / alkalmazásjelszó hiányzik vagy túl rövid.")
+            msg = f"❌ Jelszó mód: jelszó KÖTELEZŐ! (min. 8 karakter) — Auth: {auth_method}"
+            self.hint.configure(text=msg, text_color="#FF6B6B")
+            self.after(3000, lambda: self.hint.configure(text=f"Mentés ide: {CONFIG_PATH}", text_color=("gray40", "gray65")))
             return
         try:
             port = int(port_raw)
         except ValueError:
-            self.hint.configure(text="Az IMAP port legyen szám (általában 993).")
+            msg = "❌ Az IMAP port legyen szám (általában 993)."
+            self.hint.configure(text=msg, text_color="#FF6B6B")
+            self.after(3000, lambda: self.hint.configure(text=f"Mentés ide: {CONFIG_PATH}", text_color=("gray40", "gray65")))
             return
         if provider == "custom" and not host:
-            self.hint.configure(text="Egyéni IMAP-nál add meg a szervert (host).")
+            msg = "❌ Egyéni IMAP-nál add meg a szervert (host)."
+            self.hint.configure(text=msg, text_color="#FF6B6B")
+            self.after(3000, lambda: self.hint.configure(text=f"Mentés ide: {CONFIG_PATH}", text_color=("gray40", "gray65")))
             return
         if not label:
             label = email
@@ -392,10 +400,12 @@ class AccountsWindow(ctk.CTkToplevel):
 
         cfg["accounts"] = accounts
         save_config(cfg)
-        self.hint.configure(text=f"Mentve: {email} → {host}:{port}")
+        msg = f"✅ Mentve: {email} → {host}:{port}"
+        self.hint.configure(text=msg, text_color="#6BCB77")
         self._reload_list()
         if self._on_saved:
             self._on_saved()
+        self.after(3000, lambda: self.hint.configure(text=f"Mentés ide: {CONFIG_PATH}", text_color=("gray40", "gray65")))
 
     def _delete(self) -> None:
         if not self._selected_id and not self.entry_email.get().strip():
