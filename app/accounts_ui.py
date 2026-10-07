@@ -92,14 +92,7 @@ class AccountsWindow(ctk.CTkToplevel):
         scroll_container.grid_columnconfigure(0, weight=1)
 
         self.list_frame = ctk.CTkScrollableFrame(scroll_container, height=120)
-        self.list_frame.pack(fill="x", padx=16, pady=(8, 0))
-
-        # Új fiók hozzáadása gomb
-        ctk.CTkButton(
-            scroll_container,
-            text="+ Új fiók hozzáadása",
-            command=self._start_new_account,
-        ).pack(anchor="w", padx=16, pady=(8, 12))
+        self.list_frame.pack(fill="x", padx=16, pady=(8, 12))
 
         form = ctk.CTkFrame(scroll_container)
         form.pack(fill="x", padx=16, pady=8)
@@ -169,7 +162,8 @@ class AccountsWindow(ctk.CTkToplevel):
         # Fix gombok az ablak alján (nem görgethető)
         row = ctk.CTkFrame(self, fg_color="transparent")
         row.pack(fill="x", padx=16, pady=8)
-        ctk.CTkButton(row, text="Mentés / hozzáadás", command=self._save).pack(side="left", padx=(0, 8))
+        ctk.CTkButton(row, text="Hozzáadás", command=self._start_new_account).pack(side="left", padx=(0, 8))
+        ctk.CTkButton(row, text="Mentés", command=self._save).pack(side="left", padx=(0, 8))
         ctk.CTkButton(
             row, text="Törlés", fg_color="#8B3A3A", hover_color="#6E2E2E", command=self._delete
         ).pack(side="left")
