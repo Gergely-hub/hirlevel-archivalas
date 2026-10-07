@@ -68,6 +68,25 @@ def _imap_login(mail: imaplib.IMAP4_SSL, acc: Account, progress: ProgressCb | No
     mail.login(acc.email, acc.app_password)
 
 
+def test_imap_connection(acc: Account) -> tuple[bool, str]:
+    """Thunderbird-szerű teszt: SSL + IMAP bejelentkezés (nincs levélletöltés)."""
+    host = (acc.imap_host or "").strip()
+    port = int(acc.imap_port or 993)
+    try:
+        mail = imaplib.IMAP4_SSL(host, port, timeout=30)
+        _imap_login(mail, acc, None)
+        try:
+            mail.logout()
+        except Exception:
+            pass
+        return (
+            True,
+            f"Sikeresen biztonságos kapcsolatot hozott létre a következővel: {host}:{port}.",
+        )
+    except Exception as exc:
+        return False, _login_error_message(acc, exc)
+
+
 def _login_error_message(acc: Account, exc: BaseException) -> str:
     raw = str(exc)
     low = raw.lower()

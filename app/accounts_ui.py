@@ -58,8 +58,8 @@ class AccountsWindow(ctk.CTkToplevel):
         super().__init__(master)
         self.title("Levelező fiókok (IMAP)")
         from app.window_util import center_window
-        center_window(self, 720, 920)
-        self.minsize(520, 760)
+        center_window(self, 680, 780)
+        self.minsize(520, 640)
         self._on_saved = on_saved
         self._selected_id: Optional[str] = None
         self._help_url = PROVIDERS_BY_KEY["gmail"].help_url
@@ -120,85 +120,69 @@ class AccountsWindow(ctk.CTkToplevel):
         self.entry_email.grid(row=2, column=1, sticky="ew", padx=8, pady=4)
         self.entry_email.bind("<FocusOut>", self._guess_from_email)
 
-        ctk.CTkLabel(form, text="Hitelesítés módja").grid(row=3, column=0, sticky="w", padx=8, pady=4)
-        self.auth_method_var = ctk.StringVar(value="Normál jelszó")
-        self.auth_method_menu = ctk.CTkOptionMenu(
-            form,
-            values=["Normál jelszó", "OAuth2"],
-            variable=self.auth_method_var,
-            command=self._on_auth_change,
-        )
-        self.auth_method_menu.grid(row=3, column=1, sticky="ew", padx=8, pady=4)
-
         self.lbl_password = ctk.CTkLabel(form, text="Jelszó / alkalmazásjelszó")
-        self.lbl_password.grid(row=4, column=0, sticky="w", padx=8, pady=4)
+        self.lbl_password.grid(row=3, column=0, sticky="w", padx=8, pady=4)
         self.entry_password = ctk.CTkEntry(form, placeholder_text="xxxx xxxx xxxx xxxx", show="*")
-        self.entry_password.grid(row=4, column=1, sticky="ew", padx=8, pady=4)
+        self.entry_password.grid(row=3, column=1, sticky="ew", padx=8, pady=4)
         self.password_hint = ctk.CTkLabel(
             form,
-            text="Outlook/Gmail: gyakran 16 karakteres alkalmazásjelszó (2FA után).",
+            text="Gmail/Outlook: gyakran alkalmazásjelszó (2FA után).",
             anchor="w",
             text_color=("gray40", "gray65"),
             wraplength=420,
             font=("Segoe UI", 11),
         )
-        self.password_hint.grid(row=5, column=0, columnspan=2, sticky="ew", padx=8, pady=(0, 4))
+        self.password_hint.grid(row=4, column=0, columnspan=2, sticky="ew", padx=8, pady=(0, 4))
 
-        self.lbl_oauth = ctk.CTkLabel(form, text="OAuth hozzáférés token")
-        self.lbl_oauth.grid(row=6, column=0, sticky="w", padx=8, pady=4)
-        self.entry_oauth_token = ctk.CTkEntry(
-            form, placeholder_text="Hosszú Bearer token (OAuth2 bejelentkezés után)"
-        )
-        self.entry_oauth_token.grid(row=6, column=1, sticky="ew", padx=8, pady=4)
+        ctk.CTkLabel(form, text="IMAP szerver").grid(row=5, column=0, sticky="w", padx=8, pady=4)
+        self.entry_host = ctk.CTkEntry(form, placeholder_text="imap.pelda.hu")
+        self.entry_host.grid(row=5, column=1, sticky="ew", padx=8, pady=4)
 
-        self.lbl_oauth_refresh = ctk.CTkLabel(form, text="OAuth refresh token")
-        self.lbl_oauth_refresh.grid(row=7, column=0, sticky="w", padx=8, pady=4)
-        self.entry_oauth_refresh = ctk.CTkEntry(
-            form, placeholder_text="Opcionális — token megújításhoz"
+        ctk.CTkLabel(form, text="IMAP port").grid(row=6, column=0, sticky="w", padx=8, pady=4)
+        self.entry_port = ctk.CTkEntry(form, placeholder_text="993", width=80)
+        self.entry_port.grid(row=6, column=1, sticky="w", padx=8, pady=4)
+        self.entry_port.insert(0, "993")
+
+        self.test_btn = ctk.CTkButton(
+            form,
+            text="A kiszolgálóval való kapcsolat tesztelése",
+            fg_color="transparent",
+            border_width=1,
+            text_color=("#1a5fb4", "#62a0ea"),
+            command=self._test_connection,
         )
-        self.entry_oauth_refresh.grid(row=7, column=1, sticky="ew", padx=8, pady=4)
+        self.test_btn.grid(row=7, column=0, columnspan=2, sticky="w", padx=8, pady=(4, 8))
+
+        self.auth_method_var = ctk.StringVar(value="Normál jelszó")
+        self.entry_oauth_token = ctk.CTkEntry(form)
+        self.entry_oauth_refresh = ctk.CTkEntry(form)
+
+        ctk.CTkLabel(form, text="Hitelesítés").grid(row=8, column=0, sticky="w", padx=8, pady=4)
+        self.auth_method_menu = ctk.CTkOptionMenu(
+            form,
+            values=["Normál jelszó", "OAuth2 (haladó)"],
+            variable=self.auth_method_var,
+            command=self._on_auth_change,
+        )
+        self.auth_method_menu.grid(row=8, column=1, sticky="ew", padx=8, pady=4)
+
+        self.oauth_btn = ctk.CTkButton(
+            form,
+            text="Microsoft bejelentkezés…",
+            command=self._microsoft_oauth_login,
+        )
+        self.oauth_btn.grid(row=9, column=0, columnspan=2, sticky="ew", padx=8, pady=4)
 
         self.oauth_hint = ctk.CTkLabel(
             form,
-            text=(
-                "Thunderbird OAuth2: a 2FA kódot (SMS/e-mail) a böngészős bejelentkezésnél add meg — "
-                "nem IMAP mező. Ide OAuth access token kerül, vagy használd a Normál jelszót + app jelszót."
-            ),
+            text="Outlook: ha a teszt „Basic auth tiltva”, OAuth2 kell (kiadói beállítás).",
             anchor="w",
             text_color=("gray40", "gray65"),
             wraplength=420,
             justify="left",
             font=("Segoe UI", 11),
         )
-        self.oauth_hint.grid(row=8, column=0, columnspan=2, sticky="ew", padx=8, pady=(0, 4))
-
-        self.oauth_btn = ctk.CTkButton(
-            form,
-            text="Microsoft OAuth bejelentkezés (eszközkód)…",
-            command=self._microsoft_oauth_login,
-        )
-        self.oauth_btn.grid(row=9, column=0, columnspan=2, sticky="ew", padx=8, pady=4)
-
-        self.lbl_ms_client = ctk.CTkLabel(form, text="Azure app ID (OAuth)")
-        self.lbl_ms_client.grid(row=10, column=0, sticky="w", padx=8, pady=4)
-        self.entry_ms_client = ctk.CTkEntry(
-            form, placeholder_text="Application (client) ID — egyszer, minden Outlook fiókhoz"
-        )
-        self.entry_ms_client.grid(row=10, column=1, sticky="ew", padx=8, pady=4)
-        from app.oauth2_outlook import microsoft_client_id
-
-        cid = microsoft_client_id()
-        if cid:
-            self.entry_ms_client.insert(0, cid)
-
-        ctk.CTkLabel(form, text="IMAP szerver").grid(row=11, column=0, sticky="w", padx=8, pady=4)
-        self.entry_host = ctk.CTkEntry(form, placeholder_text="imap.pelda.hu")
-        self.entry_host.grid(row=11, column=1, sticky="ew", padx=8, pady=4)
-
-        ctk.CTkLabel(form, text="IMAP port").grid(row=12, column=0, sticky="w", padx=8, pady=4)
-        self.entry_port = ctk.CTkEntry(form, placeholder_text="993", width=80)
-        self.entry_port.grid(row=12, column=1, sticky="w", padx=8, pady=4)
-        self.entry_port.insert(0, "993")
+        self.oauth_hint.grid(row=10, column=0, columnspan=2, sticky="ew", padx=8, pady=(0, 4))
 
         self.provider_hint = ctk.CTkLabel(
             form,
@@ -208,9 +192,7 @@ class AccountsWindow(ctk.CTkToplevel):
             wraplength=420,
             justify="left",
         )
-        self.provider_hint.grid(row=13, column=0, columnspan=2, sticky="ew", padx=8, pady=(4, 8))
-
-        self.auth_method_var.set("Normál jelszó")
+        self.provider_hint.grid(row=11, column=0, columnspan=2, sticky="ew", padx=8, pady=(4, 8))
 
         # Fix gombok az ablak alján (nem görgethető)
         row = ctk.CTkFrame(self, fg_color="transparent")
@@ -235,44 +217,69 @@ class AccountsWindow(ctk.CTkToplevel):
         self._apply_provider_fields(self._provider_key())
 
     def _on_auth_change(self, method: str | None = None) -> None:
-        """Normál jelszó vs OAuth2 — Thunderbird-szerű (IMAP-hez releváns mezők)."""
         m = (method or self.auth_method_var.get() or "Normál jelszó").lower()
         is_oauth = "oauth" in m
 
-        def _show(row_widgets: tuple, show: bool) -> None:
-            for w in row_widgets:
+        def _show(widgets: tuple, show: bool) -> None:
+            for w in widgets:
                 if show:
                     w.grid()
                 else:
                     w.grid_remove()
 
-        _show(
-            (self.lbl_password, self.entry_password, self.password_hint),
-            not is_oauth,
+        _show((self.lbl_password, self.entry_password, self.password_hint), not is_oauth)
+        _show((self.oauth_btn, self.oauth_hint), is_oauth)
+
+    def _account_from_form(self) -> "Account":
+        from app.db import Account
+
+        provider = self._provider_key()
+        host = self.entry_host.get().strip()
+        port_raw = self.entry_port.get().strip() or "993"
+        port = int(port_raw)
+        host, port = resolve_imap(provider, imap_host=host, imap_port=port)
+        is_oauth = "oauth" in (self.auth_method_var.get() or "").lower()
+        return Account(
+            id="test",
+            label=(self.entry_label.get().strip() or self.entry_email.get().strip() or "teszt"),
+            email=self.entry_email.get().strip(),
+            app_password=self.entry_password.get().strip(),
+            provider=provider,
+            imap_host=host,
+            imap_port=port,
+            auth_method="oauth2" if is_oauth else "password",
+            oauth_token=self.entry_oauth_token.get().strip() or None,
+            oauth_refresh_token=self.entry_oauth_refresh.get().strip() or None,
         )
-        oauth_widgets = (
-            self.lbl_oauth,
-            self.entry_oauth_token,
-            self.lbl_oauth_refresh,
-            self.entry_oauth_refresh,
-            self.oauth_hint,
-            self.oauth_btn,
-            self.lbl_ms_client,
-            self.entry_ms_client,
-        )
-        _show(oauth_widgets, is_oauth)
-        if is_oauth:
-            self.oauth_hint.configure(
-                text=(
-                    "Outlook: a sima jelszó gyakran tiltott (Basic auth). "
-                    "OAuth2 → eszközkód a microsoft.com/devicelogin oldalon (2FA ott). "
-                    "Azure app ID egyszer kell (ingyenes regisztráció)."
-                )
-            )
-        if not is_oauth:
-            self.password_hint.configure(
-                text="Outlook/Gmail: gyakran 16 karakteres alkalmazásjelszó (2FA után)."
-            )
+
+    def _test_connection(self) -> None:
+        import threading
+
+        from app.gmail_fetch import test_imap_connection
+
+        email = self.entry_email.get().strip()
+        if not email or "@" not in email:
+            self.hint.configure(text="Kapcsolatteszthez add meg az e-mail címet.", text_color="#FF6B6B")
+            return
+        is_oauth = "oauth" in (self.auth_method_var.get() or "").lower()
+        if not is_oauth and len(self.entry_password.get().strip()) < 8:
+            self.hint.configure(text="Kapcsolatteszthez add meg a jelszót.", text_color="#FF6B6B")
+            return
+
+        self.hint.configure(text="Kapcsolat tesztelése…", text_color=("gray40", "gray65"))
+        self.test_btn.configure(state="disabled")
+
+        def work() -> None:
+            ok, msg = test_imap_connection(self._account_from_form())
+
+            def done() -> None:
+                self.test_btn.configure(state="normal")
+                color = "#6BCB77" if ok else "#FF6B6B"
+                self.hint.configure(text=msg, text_color=color)
+
+            self.after(0, done)
+
+        threading.Thread(target=work, daemon=True).start()
 
     def _apply_provider_fields(self, key: str) -> None:
         preset = PROVIDERS_BY_KEY.get(key) or PROVIDERS_BY_KEY["custom"]
@@ -394,7 +401,7 @@ class AccountsWindow(ctk.CTkToplevel):
         self.entry_oauth_refresh.insert(0, acc.get("oauth_refresh_token") or "")
 
         if "oauth" in auth_m:
-            self.auth_method_var.set("OAuth2")
+            self.auth_method_var.set("OAuth2 (haladó)")
         else:
             self.auth_method_var.set("Normál jelszó")
         self._on_auth_change()
