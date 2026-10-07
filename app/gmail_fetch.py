@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import email
 import html as html_lib
 import imaplib
@@ -341,7 +342,17 @@ def _fetch_one_account(
 
     try:
         mail = imaplib.IMAP4_SSL(acc.imap_host, int(acc.imap_port or 993), timeout=45)
-        mail.login(acc.email, acc.app_password)
+        
+        # OAuth2 vagy jelszó autentikáció
+        if acc.auth_method == "oauth2" and acc.oauth_token:
+            # XOAUTH2 formátum: Gmail és Outlook támogatja
+            auth_string = base64.b64encode(
+                f"user={acc.email}\1auth=Bearer {acc.oauth_token}\1\1".encode()
+            )
+            mail.authenticate('XOAUTH2', lambda x: auth_string)
+        else:
+            # Fallback: egyszerű jelszó
+            mail.login(acc.email, acc.app_password)
     except imaplib.IMAP4.error as exc:
         if progress:
             progress(f"Bejelentkezés sikertelen ({acc.email}): {exc}")
@@ -521,7 +532,15 @@ def refresh_one_message_html(msg_id: int) -> bool:
 
     try:
         mail = imaplib.IMAP4_SSL(acc.imap_host, int(acc.imap_port or 993), timeout=45)
-        mail.login(acc.email, acc.app_password)
+        
+        # OAuth2 vagy jelszó autentikáció
+        if acc.auth_method == "oauth2" and acc.oauth_token:
+            auth_string = base64.b64encode(
+                f"user={acc.email}\1auth=Bearer {acc.oauth_token}\1\1".encode()
+            )
+            mail.authenticate('XOAUTH2', lambda x: auth_string)
+        else:
+            mail.login(acc.email, acc.app_password)
     except Exception:
         return False
 

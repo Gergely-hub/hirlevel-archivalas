@@ -75,6 +75,9 @@ class Account:
     provider: str = "gmail"
     imap_host: str = "imap.gmail.com"
     imap_port: int = 993
+    auth_method: str = "password"  # "password" vagy "oauth2"
+    oauth_token: str | None = None  # Access token OAuth2-höz
+    oauth_refresh_token: str | None = None  # Refresh token OAuth2-höz
 
 
 @dataclass
