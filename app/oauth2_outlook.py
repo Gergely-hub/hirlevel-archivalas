@@ -15,8 +15,28 @@ from app.db import load_config, save_config
 # Delegált IMAP (Outlook.com / Microsoft 365)
 IMAP_SCOPE = "https://outlook.office.com/IMAP.AccessAsUser.All offline_access openid email profile"
 
-TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-DEVICE_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
+def _authority(email: str = "") -> str:
+    """Személyes Outlook (@outlook.*, hotmail, live) → consumers; egyébként common."""
+    dom = (email.split("@")[-1] if "@" in email else "").lower()
+    if dom in (
+        "outlook.com",
+        "outlook.hu",
+        "hotmail.com",
+        "hotmail.hu",
+        "live.com",
+        "live.hu",
+        "msn.com",
+    ):
+        return "consumers"
+    return "common"
+
+
+def _token_url(email: str = "") -> str:
+    return f"https://login.microsoftonline.com/{_authority(email)}/oauth2/v2.0/token"
+
+
+def _device_url(email: str = "") -> str:
+    return f"https://login.microsoftonline.com/{_authority(email)}/oauth2/v2.0/devicecode"
 
 
 def microsoft_client_id() -> str:
@@ -31,16 +51,16 @@ def set_microsoft_client_id(client_id: str) -> None:
     save_config(cfg)
 
 
-def start_device_flow(client_id: str) -> dict[str, Any]:
+def start_device_flow(client_id: str, email: str = "") -> dict[str, Any]:
     body = urllib.parse.urlencode(
         {"client_id": client_id, "scope": IMAP_SCOPE}
     ).encode("utf-8")
-    req = urllib.request.Request(DEVICE_URL, data=body, method="POST")
+    req = urllib.request.Request(_device_url(email), data=body, method="POST")
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
-def poll_device_tokens(client_id: str, device_code: str) -> dict[str, Any]:
+def poll_device_tokens(client_id: str, device_code: str, email: str = "") -> dict[str, Any]:
     body = urllib.parse.urlencode(
         {
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
@@ -48,12 +68,14 @@ def poll_device_tokens(client_id: str, device_code: str) -> dict[str, Any]:
             "device_code": device_code,
         }
     ).encode("utf-8")
-    req = urllib.request.Request(TOKEN_URL, data=body, method="POST")
+    req = urllib.request.Request(_token_url(email), data=body, method="POST")
     with urllib.request.urlopen(req, timeout=60) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
-def refresh_access_token(client_id: str, refresh_token: str) -> dict[str, Any]:
+def refresh_access_token(
+    client_id: str, refresh_token: str, email: str = ""
+) -> dict[str, Any]:
     body = urllib.parse.urlencode(
         {
             "grant_type": "refresh_token",
@@ -62,13 +84,14 @@ def refresh_access_token(client_id: str, refresh_token: str) -> dict[str, Any]:
             "scope": IMAP_SCOPE,
         }
     ).encode("utf-8")
-    req = urllib.request.Request(TOKEN_URL, data=body, method="POST")
+    req = urllib.request.Request(_token_url(email), data=body, method="POST")
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
 def run_device_login(
     *,
+    email: str = "",
     on_status: Any = None,
     timeout_sec: int = 600,
 ) -> dict[str, Any] | None:
@@ -89,7 +112,7 @@ def run_device_login(
             on_status(msg)
 
     status("Eszközkód kérése…")
-    dev = start_device_flow(client_id)
+    dev = start_device_flow(client_id, email=email)
     user_code = dev.get("user_code") or ""
     uri = dev.get("verification_uri") or "https://microsoft.com/devicelogin"
     message = dev.get("message") or f"Nyisd meg {uri} és add meg: {user_code}"
@@ -107,7 +130,7 @@ def run_device_login(
     while time.monotonic() < deadline:
         time.sleep(max(3, interval))
         try:
-            tok = poll_device_tokens(client_id, device_code)
+            tok = poll_device_tokens(client_id, device_code, email=email)
         except urllib.error.HTTPError as exc:
             err_body = exc.read().decode("utf-8", errors="replace")
             try:
@@ -134,6 +157,7 @@ def run_device_login(
 
 def try_refresh_account_tokens(
     oauth_refresh_token: str | None,
+    email: str = "",
 ) -> dict[str, str] | None:
     """Refresh token → új access (+ esetleg refresh). None ha nem sikerült."""
     if not oauth_refresh_token:
@@ -142,7 +166,7 @@ def try_refresh_account_tokens(
     if not client_id:
         return None
     try:
-        tok = refresh_access_token(client_id, oauth_refresh_token)
+        tok = refresh_access_token(client_id, oauth_refresh_token, email=email)
     except Exception:
         return None
     if not tok.get("access_token"):

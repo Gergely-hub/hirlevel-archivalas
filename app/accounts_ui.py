@@ -556,7 +556,7 @@ class AccountsWindow(ctk.CTkToplevel):
 
         def work() -> None:
             try:
-                tok = run_device_login(on_status=set_status)
+                tok = run_device_login(email=email, on_status=set_status)
             except Exception as exc:
                 self.after(0, lambda: status_lbl.configure(text=str(exc)))
                 return

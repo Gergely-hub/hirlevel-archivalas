@@ -44,7 +44,7 @@ def _oauth_access_token(acc: Account) -> str | None:
     from app.oauth2_outlook import try_refresh_account_tokens
 
     if acc.oauth_refresh_token:
-        ref = try_refresh_account_tokens(acc.oauth_refresh_token)
+        ref = try_refresh_account_tokens(acc.oauth_refresh_token, email=acc.email)
         if ref:
             return ref["oauth_token"]
     tok = (acc.oauth_token or "").strip()
