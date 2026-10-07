@@ -27,6 +27,7 @@ from app.db import (
     Message,
     Source,
     add_source,
+    update_source,
     count_messages,
     count_messages_by_source,
     count_unread_by_source,
@@ -2227,6 +2228,71 @@ class App(ctk.CTk):
         row = ctk.CTkFrame(win, fg_color="transparent")
         row.pack(fill="x", padx=16, pady=16)
         ctk.CTkButton(row, text="Hozzáadás", command=save).pack(side="left", padx=(0, 8))
+        ctk.CTkButton(row, text="Mégse", command=win.destroy).pack(side="left")
+        entry_name.focus_set()
+
+    def _edit_source(self, src: Source) -> None:
+        """Hírlevél neve és feladó e-mail szerkesztése (IMAP FROM szűrés)."""
+        win = ctk.CTkToplevel(self)
+        win.title("Hírlevél szerkesztése")
+        win.geometry("420x240")
+        win.minsize(380, 220)
+        win.transient(self)
+        win.grab_set()
+        win.focus_force()
+
+        ctk.CTkLabel(
+            win,
+            text="Név a listában, e-mail = feladó cím (IMAP FROM). "
+            "Nincs külön Gmail/Outlook választás — minden beállított fiókban keresünk.",
+            anchor="w",
+            wraplength=380,
+            justify="left",
+        ).pack(fill="x", padx=16, pady=(16, 8))
+
+        form = ctk.CTkFrame(win, fg_color="transparent")
+        form.pack(fill="x", padx=16, pady=4)
+        form.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(form, text="Név").grid(row=0, column=0, sticky="w", padx=(0, 8), pady=6)
+        entry_name = ctk.CTkEntry(form)
+        entry_name.insert(0, src.name)
+        entry_name.grid(row=0, column=1, sticky="ew", pady=6)
+
+        ctk.CTkLabel(form, text="Feladó e-mail").grid(row=1, column=0, sticky="w", padx=(0, 8), pady=6)
+        entry_email = ctk.CTkEntry(form)
+        entry_email.insert(0, src.email)
+        entry_email.grid(row=1, column=1, sticky="ew", pady=6)
+
+        hint = ctk.CTkLabel(win, text="", anchor="w", text_color=("gray40", "gray70"))
+        hint.pack(fill="x", padx=16, pady=(4, 0))
+
+        def save() -> None:
+            name = entry_name.get().strip()
+            email = entry_email.get().strip()
+            if not name:
+                hint.configure(text="Add meg a megjelenített nevet.")
+                return
+            if not email or "@" not in email:
+                hint.configure(text="Érvényes feladó e-mail kell.")
+                return
+            other = find_source_by_email(email)
+            if other and other.id != src.id:
+                hint.configure(text="Ez a feladó e-mail már másik hírlevélnél szerepel.")
+                return
+            if not update_source(src.id, name=name, email=email):
+                hint.configure(text="Mentés sikertelen.")
+                return
+            self._reload_sources(reset_scroll=False)
+            fresh = get_source(src.id)
+            if fresh:
+                self._select_source(fresh)
+            self._set_status(f"Hírlevél mentve: {name}", force=True)
+            win.destroy()
+
+        row = ctk.CTkFrame(win, fg_color="transparent")
+        row.pack(fill="x", padx=16, pady=16)
+        ctk.CTkButton(row, text="Mentés", command=save).pack(side="left", padx=(0, 8))
         ctk.CTkButton(row, text="Mégse", command=win.destroy).pack(side="left")
         entry_name.focus_set()
 

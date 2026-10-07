@@ -356,6 +356,20 @@ def rename_source(source_id: int, new_name: str) -> bool:
         return cur.rowcount > 0
 
 
+def update_source(source_id: int, *, name: str, email: str) -> bool:
+    """Hírlevél megjelenített neve és feladó e-mail (IMAP FROM szűrés)."""
+    name = (name or "").strip()
+    email = (email or "").strip().lower()
+    if not name or "@" not in email:
+        return False
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE sources SET name = ?, email = ? WHERE id = ?",
+            (name, email, source_id),
+        )
+        return cur.rowcount > 0
+
+
 def set_source_active(source_id: int, active: bool) -> bool:
     with connect() as conn:
         cur = conn.execute(
