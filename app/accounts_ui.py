@@ -112,11 +112,30 @@ class AccountsWindow(ctk.CTkToplevel):
         self.entry_email.grid(row=2, column=1, sticky="ew", padx=8, pady=4)
         self.entry_email.bind("<FocusOut>", self._guess_from_email)
 
-        ctk.CTkLabel(form, text="Jelszó / app jelszó").grid(row=3, column=0, sticky="w", padx=8, pady=4)
-        self.entry_password = ctk.CTkEntry(form, placeholder_text="xxxx xxxx xxxx xxxx", show="*")
-        self.entry_password.grid(row=3, column=1, sticky="ew", padx=8, pady=4)
+        ctk.CTkLabel(form, text="Hitelesítés módja").grid(row=3, column=0, sticky="w", padx=8, pady=4)
+        self.auth_method_var = ctk.StringVar(value="password")
+        self.auth_method_menu = ctk.CTkOptionMenu(
+            form,
+            values=["Jelszó", "OAuth2"],
+            variable=self.auth_method_var,
+            command=self._on_auth_change,
+        )
+        self.auth_method_menu.grid(row=3, column=1, sticky="ew", padx=8, pady=4)
 
-        ctk.CTkLabel(form, text="IMAP szerver").grid(row=4, column=0, sticky="w", padx=8, pady=4)
+        ctk.CTkLabel(form, text="Jelszó / app jelszó").grid(row=4, column=0, sticky="w", padx=8, pady=4)
+        self.entry_password = ctk.CTkEntry(form, placeholder_text="xxxx xxxx xxxx xxxx", show="*")
+        self.entry_password.grid(row=4, column=1, sticky="ew", padx=8, pady=4)
+        self.password_hint = ctk.CTkLabel(
+            form,
+            text="OAuth2 használatakor nem szükséges",
+            anchor="w",
+            text_color=("gray40", "gray65"),
+            wraplength=420,
+            font=("Segoe UI", 11),
+        )
+        self.password_hint.grid(row=5, column=0, columnspan=2, sticky="ew", padx=8, pady=(0, 4))
+
+        ctk.CTkLabel(form, text="IMAP szerver").grid(row=6, column=0, sticky="w", padx=8, pady=4)
         self.entry_host = ctk.CTkEntry(form, placeholder_text="imap.pelda.hu")
         self.entry_host.grid(row=4, column=1, sticky="ew", padx=8, pady=4)
 
