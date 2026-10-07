@@ -54,6 +54,78 @@ def _extract_addr(from_header: str) -> str:
     return (from_header or "").strip().lower()
 
 
+def _search_uids_for_sender(
+    mail: imaplib.IMAP4_SSL,
+    sender_email: str,
+    *,
+    context: str = "",
+) -> tuple[list[bytes], str]:
+    """FROM keresés — Outlooknál gyakran csak HEADER FROM működik."""
+    addr = (sender_email or "").strip().lower()
+    if not addr or "@" not in addr:
+        return [], ""
+
+    criteria_list = [
+        f'(FROM "{addr}")',
+        f'(HEADER FROM "{addr}")',
+        f'(OR FROM "{addr}" HEADER FROM "{addr}")',
+    ]
+    domain = addr.split("@", 1)[1]
+    if domain:
+        criteria_list.append(f'(HEADER FROM "@{domain}")')
+
+    for criteria in criteria_list:
+        try:
+            typ, data = mail.search(None, criteria)
+            if typ == "OK" and data and data[0]:
+                uids = data[0].split()
+                if uids:
+                    sync_debug.log(
+                        f"SEARCH OK {context}: {criteria} → {len(uids)} UID"
+                    )
+                    return uids, criteria
+            sync_debug.log(f"SEARCH 0 {context}: {criteria} typ={typ!r}")
+        except Exception as exc:
+            sync_debug.log(f"SEARCH err {context}: {criteria} → {exc}")
+
+    return [], ""
+
+
+def _log_recent_inbox_senders(
+    mail: imaplib.IMAP4_SSL,
+    acc_label: str,
+    *,
+    want: str,
+    limit: int = 10,
+) -> None:
+    """0 találatnál: naplózza az aktuális mappa utolsó levelei From mezőit (INBOX)."""
+    try:
+        typ, data = mail.search(None, "ALL")
+        if typ != "OK" or not data or not data[0]:
+            sync_debug.log(f"{acc_label}: INBOX üres (diagnosztika)")
+            return
+        uids = data[0].split()[-limit:]
+        sync_debug.log(
+            f"{acc_label}: 0 találat FOR {want!r} — INBOX utolsó {len(uids)} levél From mezői:"
+        )
+        for raw_uid in uids:
+            typ, msg_data = mail.fetch(
+                raw_uid,
+                "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT)])",
+            )
+            if typ != "OK" or not msg_data or not msg_data[0]:
+                continue
+            raw_hdr = msg_data[0][1]
+            if not isinstance(raw_hdr, (bytes, bytearray)):
+                continue
+            hdr = email.message_from_bytes(raw_hdr)
+            frm = _decode_header_value(hdr.get("From"))
+            subj = _decode_header_value(hdr.get("Subject"))[:60]
+            sync_debug.log(f"  uid={_uid_key(raw_uid)} From={frm!r} Subj={subj!r}")
+    except Exception as exc:
+        sync_debug.log(f"{acc_label}: diagnosztika hiba: {exc}")
+
+
 def _html_to_text(html: str) -> str:
     soup = BeautifulSoup(html, "lxml")
     for tag in soup(["script", "style"]):
@@ -428,19 +500,19 @@ def _fetch_one_account(
                     continue
                 maybe_progress(f"{acc.label}: {source.name} @ {folder}")
 
-                criteria = f'(FROM "{email_addr}")'
-                typ, data = mail.search(None, criteria)
-                if typ != "OK" or not data or not data[0]:
-                    sync_debug.log(
-                        f"SEARCH {acc.label} / {folder} / {source.name}: "
-                        f"criteria={criteria} → typ={typ!r} találat=0"
-                    )
+                ctx = f"{acc.label}/{folder}/{source.name}"
+                uid_list, _used = _search_uids_for_sender(
+                    mail, email_addr, context=ctx
+                )
+                if not uid_list:
+                    if "INBOX" in folder.upper():
+                        _log_recent_inbox_senders(
+                            mail, acc.label, want=email_addr, limit=8
+                        )
                     continue
 
-                uid_list = data[0].split()
                 sync_debug.log(
-                    f"SEARCH {acc.label} / {folder} / {source.name}: "
-                    f"{len(uid_list)} UID (feldolgozás max {folder_limit})"
+                    f"SEARCH {ctx}: {len(uid_list)} UID (feldolgozás max {folder_limit})"
                 )
                 uids = uid_list[-folder_limit:]
                 for raw_uid in reversed(uids):
@@ -584,17 +656,15 @@ def _fetch_one_source_on_account(
 
             _emit(progress, f"{acc.label}: {src.name} @ {folder} …")
 
-            criteria = f'(FROM "{src.email}")'
-            typ, data = mail.search(None, criteria)
-            if typ != "OK" or not data or not data[0]:
-                sync_debug.log(
-                    f"SEARCH {acc.label}/{folder}: criteria={criteria} → typ={typ!r} találat=0"
-                )
+            ctx = f"{acc.label}/{folder}/{src.name}"
+            uid_list, _used = _search_uids_for_sender(mail, src.email, context=ctx)
+            if not uid_list:
+                if "INBOX" in folder.upper():
+                    _log_recent_inbox_senders(mail, acc.label, want=src.email, limit=8)
                 continue
 
-            uid_list = data[0].split()
             sync_debug.log(
-                f"SEARCH {acc.label}/{folder}: {len(uid_list)} UID (max 40 feldolgozás)"
+                f"SEARCH {ctx}: {len(uid_list)} UID (max 40 feldolgozás)"
             )
             uids = uid_list[-40:]
             pending: list[tuple] = []
