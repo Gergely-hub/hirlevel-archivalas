@@ -341,25 +341,35 @@ def _fetch_one_account(
         progress(f"Kapcsolódás: {acc.email} ({acc.imap_host}) …")
 
     try:
+        if progress:
+            progress(f"🔌 Kapcsolódás: {acc.imap_host}:{acc.imap_port} ({acc.auth_method})")
+        
         mail = imaplib.IMAP4_SSL(acc.imap_host, int(acc.imap_port or 993), timeout=45)
         
         # OAuth2 vagy jelszó autentikáció
         if acc.auth_method == "oauth2" and acc.oauth_token:
             # XOAUTH2 formátum: Gmail és Outlook támogatja
+            if progress:
+                progress(f"🔑 OAuth2 login: {acc.email}")
             auth_string = base64.b64encode(
                 f"user={acc.email}\1auth=Bearer {acc.oauth_token}\1\1".encode()
             )
             mail.authenticate('XOAUTH2', lambda x: auth_string)
         else:
             # Fallback: egyszerű jelszó
+            if progress:
+                progress(f"🔑 Jelszó login: {acc.email}")
             mail.login(acc.email, acc.app_password)
+        
+        if progress:
+            progress(f"✅ Bejelentkezés OK: {acc.label}")
     except imaplib.IMAP4.error as exc:
         if progress:
-            progress(f"Bejelentkezés sikertelen ({acc.email}): {exc}")
+            progress(f"❌ IMAP login hiba ({acc.email}): {str(exc)[:100]}")
         return 0
     except Exception as exc:
         if progress:
-            progress(f"Hiba ({acc.email} @ {acc.imap_host}): {exc}")
+            progress(f"❌ Csatlakozási hiba ({acc.imap_host}): {str(exc)[:100]}")
         return 0
 
     known = known_gmail_uids(acc.id)
