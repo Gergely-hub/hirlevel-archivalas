@@ -2322,8 +2322,13 @@ class App(ctk.CTk):
             inner = ctk.CTkFrame(row, fg_color="transparent")
             inner.pack(fill="both", expand=True, padx=12, pady=8)
 
+            # Név + Frissítés gomb egy sorban
+            name_row = ctk.CTkFrame(inner, fg_color="transparent")
+            name_row.pack(fill="x", anchor="w")
+            name_row.grid_columnconfigure(0, weight=1)
+            
             name_lbl = ctk.CTkLabel(
-                inner,
+                name_row,
                 text=src.name,
                 font=self._body_font(13),
                 text_color=pal.text,
@@ -2331,7 +2336,28 @@ class App(ctk.CTk):
                 justify="left",
                 wraplength=wrap,
             )
-            name_lbl.pack(fill="x", anchor="w")
+            name_lbl.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+            
+            def on_sync_source(_e: object = None, sid: int = src.id) -> None:
+                """Per-forrás szinkronizálás."""
+                from app.gmail_fetch import fetch_one_source
+                self._set_status(f"Szinkronizálás: {src.name} …", force=True)
+                try:
+                    n = fetch_one_source(sid, progress=self._set_status)
+                    self._set_status(f"{src.name}: {n} új levél", force=True)
+                    self._reload_sources(reset_scroll=False)
+                except Exception as exc:
+                    self._set_status(f"Hiba: {exc}", force=True)
+            
+            sync_btn = ctk.CTkButton(
+                name_row,
+                text="🔄",
+                width=32,
+                height=28,
+                font=self._body_font(12),
+                command=on_sync_source,
+            )
+            sync_btn.grid(row=0, column=1, sticky="e")
 
             if u:
                 stats = f"{n} levél · {u} új"

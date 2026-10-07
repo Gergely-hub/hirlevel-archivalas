@@ -502,6 +502,120 @@ def _fetch_one_account(
     return added + refreshed
 
 
+def fetch_one_source(
+    source_id: int,
+    progress: ProgressCb | None = None,
+) -> int:
+    """Egy forrás szinkronizálása (per-forrás frissítés gomb)."""
+    from app.db import get_source, get_accounts, known_gmail_uids
+    
+    src = get_source(source_id)
+    if not src:
+        if progress:
+            progress("Forrás nem található")
+        return 0
+    
+    cfg = load_config()
+    accounts = {a.id: a for a in get_accounts(cfg)}
+    acc = accounts.get(src.account_id or "")
+    if not acc:
+        if progress:
+            progress(f"Fiók nem található: {src.email}")
+        return 0
+    
+    if progress:
+        progress(f"Szinkronizálás: {acc.label} - {src.name} …")
+    
+    known = known_gmail_uids(acc.id)
+    added = 0
+    
+    try:
+        mail = imaplib.IMAP4_SSL(acc.imap_host, int(acc.imap_port or 993), timeout=45)
+        
+        if acc.auth_method == "oauth2" and acc.oauth_token:
+            auth_string = base64.b64encode(
+                f"user={acc.email}\1auth=Bearer {acc.oauth_token}\1\1".encode()
+            )
+            mail.authenticate('XOAUTH2', lambda x: auth_string)
+        else:
+            mail.login(acc.email, acc.app_password)
+    except Exception as exc:
+        if progress:
+            progress(f"Bejelentkezés sikertelen: {exc}")
+        return 0
+    
+    try:
+        folders = _pick_folders(mail, full_import=False)
+        for folder in folders:
+            if not _select_folder(mail, folder):
+                continue
+            
+            if progress:
+                progress(f"{acc.label}: {src.name} @ {folder} …")
+            
+            criteria = f'(FROM "{src.email}")'
+            typ, data = mail.search(None, criteria)
+            if typ != "OK" or not data or not data[0]:
+                continue
+            
+            uids = data[0].split()[-40:]  # Max 40 per sync
+            pending = []
+            
+            for raw_uid in reversed(uids):
+                uid_num = _uid_key(raw_uid)
+                
+                typ, msg_data = mail.fetch(raw_uid, "(RFC822)")
+                if typ != "OK" or not msg_data or not msg_data[0]:
+                    continue
+                
+                raw = msg_data[0][1]
+                if not isinstance(raw, (bytes, bytearray)):
+                    continue
+                
+                msg = email.message_from_bytes(raw)
+                subject = _decode_header_value(msg.get("Subject"))
+                body_text, body_html = _parts_from_message(msg)
+                
+                try:
+                    received = parsedate_to_datetime(msg.get("Date"))
+                    if received.tzinfo:
+                        received = received.astimezone().replace(tzinfo=None)
+                except Exception:
+                    received = datetime.now()
+                
+                mid = (msg.get("Message-ID") or "").strip()
+                uid_str, is_known = _resolve_known_uid(
+                    acc.id,
+                    message_id=mid,
+                    folder=folder,
+                    imap_uid=uid_num,
+                    known=known,
+                )
+                
+                if not is_known:
+                    pending.append(
+                        (src.id, acc.id, uid_str, subject, body_text, body_html, received)
+                    )
+                    known.add(uid_str)
+                
+                if len(pending) >= 10:
+                    added += insert_messages_bulk(pending)
+                    pending.clear()
+            
+            if pending:
+                added += insert_messages_bulk(pending)
+    finally:
+        try:
+            mail.logout()
+        except Exception:
+            pass
+    
+    if progress:
+        progress(f"{acc.label}: {src.name} — {added} új levél")
+    
+    return added
+
+
 def refresh_one_message_html(msg_id: int) -> bool:
     """Egy stub levél HTML-jének azonnali letöltése IMAP-ról. True = sikerült."""
     full = get_message(msg_id)
