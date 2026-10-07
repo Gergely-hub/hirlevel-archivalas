@@ -89,6 +89,13 @@ class AccountsWindow(ctk.CTkToplevel):
         self.list_frame = ctk.CTkScrollableFrame(self, height=120)
         self.list_frame.pack(fill="x", padx=16, pady=8)
 
+        # Új fiók hozzáadása gomb
+        ctk.CTkButton(
+            self,
+            text="+ Új fiók hozzáadása",
+            command=self._start_new_account,
+        ).pack(anchor="w", padx=16, pady=(0, 12))
+
         form = ctk.CTkFrame(self)
         form.pack(fill="x", padx=16, pady=8)
         form.grid_columnconfigure(1, weight=1)
@@ -306,13 +313,19 @@ class AccountsWindow(ctk.CTkToplevel):
             self.entry_port.delete(0, "end")
             self.entry_port.insert(0, str(acc.get("imap_port") or 993))
 
+    def _start_new_account(self) -> None:
+        """Új fiók kezdése — űrlap törlése."""
+        self._clear_form()
+
     def _clear_form(self) -> None:
         self._selected_id = None
         self.entry_label.delete(0, "end")
         self.entry_email.delete(0, "end")
         self.entry_password.delete(0, "end")
+        self.auth_method_var.set("Jelszó")
         self.provider_var.set(PROVIDERS_BY_KEY["gmail"].label)
         self._apply_provider_fields("gmail")
+        self._on_auth_change()
 
     def _save(self) -> None:
         label = self.entry_label.get().strip()
