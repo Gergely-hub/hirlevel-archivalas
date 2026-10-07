@@ -2345,7 +2345,8 @@ class App(ctk.CTk):
                 try:
                     n = fetch_one_source(sid, progress=self._set_status)
                     self._set_status(f"{src.name}: {n} új levél", force=True)
-                    self._reload_sources(reset_scroll=False)
+                    # Csak a számlálókat frissítjük, nem rajzoljuk újra az UI-t
+                    self._refresh_source_badges()
                 except Exception as exc:
                     self._set_status(f"Hiba: {exc}", force=True)
             
