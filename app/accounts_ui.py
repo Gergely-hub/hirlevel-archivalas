@@ -289,6 +289,15 @@ class AccountsWindow(ctk.CTkToplevel):
         key = str(acc.get("provider") or "gmail")
         self.provider_var.set(provider_label(key))
         self._apply_provider_fields(key)
+        
+        # Auth method betöltése
+        auth_m = str(acc.get("auth_method") or "password").lower()
+        if "oauth" in auth_m:
+            self.auth_method_var.set("OAuth2")
+        else:
+            self.auth_method_var.set("Jelszó")
+        self._on_auth_change()
+        
         if key == "custom":
             self.entry_host.configure(state="normal")
             self.entry_host.delete(0, "end")
@@ -312,11 +321,15 @@ class AccountsWindow(ctk.CTkToplevel):
         provider = self._provider_key()
         host = self.entry_host.get().strip()
         port_raw = self.entry_port.get().strip() or "993"
+        auth_method = (self.auth_method_var.get() or "password").lower()
 
         if not email or "@" not in email:
             self.hint.configure(text="Adj meg érvényes e-mail címet.")
             return
-        if not password or len(password.replace(" ", "")) < 8:
+        
+        # OAuth2 = jelszó opcionális; Jelszó = kötelező
+        is_oauth = "oauth" in auth_method
+        if not is_oauth and (not password or len(password.replace(" ", "")) < 8):
             self.hint.configure(text="A jelszó / alkalmazásjelszó hiányzik vagy túl rövid.")
             return
         try:
@@ -344,6 +357,7 @@ class AccountsWindow(ctk.CTkToplevel):
             "provider": provider,
             "imap_host": host,
             "imap_port": port,
+            "auth_method": "oauth2" if is_oauth else "password",
         }
 
         updated = False
