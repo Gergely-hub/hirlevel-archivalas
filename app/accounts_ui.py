@@ -313,7 +313,8 @@ class AccountsWindow(ctk.CTkToplevel):
             self.entry_port.insert(0, str(acc.get("imap_port") or 993))
 
     def _start_new_account(self) -> None:
-        """Új fiók kezdése — űrlap törlése."""
+        """Hozzáadás: mentés MAJD új fiók (forma törlése)."""
+        self._save()
         self._clear_form()
 
     def _clear_form(self) -> None:
