@@ -135,13 +135,13 @@ class AccountsWindow(ctk.CTkToplevel):
         )
         self.password_hint.grid(row=5, column=0, columnspan=2, sticky="ew", padx=8, pady=(0, 4))
 
-        ctk.CTkLabel(form, text="IMAP szerver").grid(row=6, column=0, sticky="w", padx=8, pady=4)
+        ctk.CTkLabel(form, text="IMAP szerver").grid(row=7, column=0, sticky="w", padx=8, pady=4)
         self.entry_host = ctk.CTkEntry(form, placeholder_text="imap.pelda.hu")
-        self.entry_host.grid(row=4, column=1, sticky="ew", padx=8, pady=4)
+        self.entry_host.grid(row=7, column=1, sticky="ew", padx=8, pady=4)
 
-        ctk.CTkLabel(form, text="IMAP port").grid(row=5, column=0, sticky="w", padx=8, pady=4)
+        ctk.CTkLabel(form, text="IMAP port").grid(row=8, column=0, sticky="w", padx=8, pady=4)
         self.entry_port = ctk.CTkEntry(form, placeholder_text="993", width=80)
-        self.entry_port.grid(row=5, column=1, sticky="w", padx=8, pady=4)
+        self.entry_port.grid(row=8, column=1, sticky="w", padx=8, pady=4)
         self.entry_port.insert(0, "993")
 
         self.provider_hint = ctk.CTkLabel(
@@ -152,7 +152,7 @@ class AccountsWindow(ctk.CTkToplevel):
             wraplength=420,
             justify="left",
         )
-        self.provider_hint.grid(row=6, column=0, columnspan=2, sticky="ew", padx=8, pady=(4, 8))
+        self.provider_hint.grid(row=9, column=0, columnspan=2, sticky="ew", padx=8, pady=(4, 8))
 
         row = ctk.CTkFrame(self, fg_color="transparent")
         row.pack(fill="x", padx=16, pady=8)
@@ -173,6 +173,19 @@ class AccountsWindow(ctk.CTkToplevel):
 
     def _on_provider_change(self, _label: str | None = None) -> None:
         self._apply_provider_fields(self._provider_key())
+
+    def _on_auth_change(self, method: str | None = None) -> None:
+        """Auth method változásra: Jelszó vs OAuth2 UI frissítés."""
+        m = (method or self.auth_method_var.get() or "password").lower()
+        # OAuth2: jelszó opcionális
+        # Jelszó: jelszó kötelező
+        is_oauth = "oauth" in m
+        if is_oauth:
+            self.entry_password.configure(state="normal")
+            self.password_hint.configure(text="Opcionális OAuth2 mellett")
+        else:
+            self.entry_password.configure(state="normal")
+            self.password_hint.configure(text="Kötelező a jelszó bejelentkezéshez")
 
     def _apply_provider_fields(self, key: str) -> None:
         preset = PROVIDERS_BY_KEY.get(key) or PROVIDERS_BY_KEY["custom"]
