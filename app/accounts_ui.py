@@ -170,7 +170,6 @@ class AccountsWindow(ctk.CTkToplevel):
         row = ctk.CTkFrame(self, fg_color="transparent")
         row.pack(fill="x", padx=16, pady=8)
         ctk.CTkButton(row, text="Mentés / hozzáadás", command=self._save).pack(side="left", padx=(0, 8))
-        ctk.CTkButton(row, text="Új üres űrlap", command=self._clear_form).pack(side="left", padx=(0, 8))
         ctk.CTkButton(
             row, text="Törlés", fg_color="#8B3A3A", hover_color="#6E2E2E", command=self._delete
         ).pack(side="left")
