@@ -161,8 +161,19 @@ def get_accounts(cfg: Optional[dict[str, Any]] = None) -> list[Account]:
     for raw in cfg.get("accounts") or []:
         email = (raw.get("email") or "").strip()
         pwd = (raw.get("app_password") or "").strip().replace(" ", "")
-        if not email or not pwd or "SAJAT@" in email or pwd.startswith("xxxx"):
+        auth_method = str(raw.get("auth_method") or "password").strip().lower()
+        oauth_token = str(raw.get("oauth_token") or "").strip()
+        oauth_refresh = str(raw.get("oauth_refresh_token") or "").strip()
+        is_oauth = "oauth" in auth_method
+
+        if not email or "SAJAT@" in email.upper():
             continue
+        if is_oauth:
+            if not oauth_token and (not pwd or pwd.startswith("xxxx")):
+                continue
+        elif not pwd or pwd.startswith("xxxx"):
+            continue
+
         provider = str(raw.get("provider") or "gmail").strip().lower() or "gmail"
         host, port = resolve_imap(
             provider,
@@ -178,6 +189,9 @@ def get_accounts(cfg: Optional[dict[str, Any]] = None) -> list[Account]:
                 provider=provider,
                 imap_host=host,
                 imap_port=port,
+                auth_method="oauth2" if is_oauth else "password",
+                oauth_token=oauth_token or None,
+                oauth_refresh_token=oauth_refresh or None,
             )
         )
     return out
