@@ -2322,7 +2322,7 @@ class App(ctk.CTk):
             inner = ctk.CTkFrame(row, fg_color="transparent")
             inner.pack(fill="both", expand=True, padx=12, pady=8)
 
-            # Név + Frissítés gomb egy sorban
+            # Név + Szerkesztés + Frissítés gombok egy sorban
             name_row = ctk.CTkFrame(inner, fg_color="transparent")
             name_row.pack(fill="x", anchor="w")
             name_row.grid_columnconfigure(0, weight=1)
@@ -2337,6 +2337,20 @@ class App(ctk.CTk):
                 wraplength=wrap,
             )
             name_lbl.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+            
+            def on_edit_source(_e: object = None, s: Source = src) -> None:
+                """Hírlevél szerkesztése."""
+                self._edit_source(s)
+            
+            edit_btn = ctk.CTkButton(
+                name_row,
+                text="✎",
+                width=32,
+                height=28,
+                font=self._body_font(12),
+                command=on_edit_source,
+            )
+            edit_btn.grid(row=0, column=1, sticky="e", padx=(4, 4))
             
             def on_sync_source(_e: object = None, sid: int = src.id) -> None:
                 """Per-forrás szinkronizálás."""
@@ -2358,7 +2372,7 @@ class App(ctk.CTk):
                 font=self._body_font(12),
                 command=on_sync_source,
             )
-            sync_btn.grid(row=0, column=1, sticky="e")
+            sync_btn.grid(row=0, column=2, sticky="e")
 
             if u:
                 stats = f"{n} levél · {u} új"
