@@ -496,9 +496,7 @@ def _fetch_one_account(
                 folder_limit = max(max_per, 200 if not full_import else max_per)
 
             for email_addr, source in by_email.items():
-                if source.account_id and source.account_id != acc.id:
-                    continue
-                maybe_progress(f"{acc.label}: {source.name} @ {folder}")
+                maybe_progress(f"{acc.label} · {acc.email}: {source.name} @ {folder}")
 
                 ctx = f"{acc.label}/{folder}/{source.name}"
                 uid_list, _used = _search_uids_for_sender(
@@ -654,7 +652,7 @@ def _fetch_one_source_on_account(
                 sync_debug.log(f"{acc.label}: mappa nem választható: {folder!r}")
                 continue
 
-            _emit(progress, f"{acc.label}: {src.name} @ {folder} …")
+            _emit(progress, f"{acc.label} · {acc.email}: {src.name} @ {folder} …")
 
             ctx = f"{acc.label}/{folder}/{src.name}"
             uid_list, _used = _search_uids_for_sender(mail, src.email, context=ctx)
@@ -748,16 +746,13 @@ def fetch_one_source(
         _emit(progress, "Nincs beállított levelező fiók.")
         return 0
 
+    # Mindig minden IMAP fiók (nincs rejtett Gmail-kötés a forrásoknál)
+    accs = all_accs
     if src.account_id:
-        accs = [a for a in all_accs if a.id == src.account_id]
-        if not accs:
-            _emit(
-                progress,
-                f"Ehhez a hírlevélhez rendelt fiók nem található ({src.account_id}).",
-            )
-            return 0
-    else:
-        accs = all_accs
+        sync_debug.log(
+            f"Figyelem: forrás account_id={src.account_id!r} — figyelmen kívül hagyva, "
+            f"minden fiókban keresünk."
+        )
 
     for acc in accs:
         sync_debug.log(f"  fiók: {acc.label} ({acc.email}) @ {acc.imap_host}")

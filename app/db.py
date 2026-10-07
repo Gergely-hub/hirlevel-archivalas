@@ -250,6 +250,7 @@ def init_db() -> None:
         )
         _migrate_messages(conn)
         _migrate_sources(conn)
+        _migrate_clear_source_account_bind(conn)
         _migrate_normalize_subjects(conn)
         _seed_sources(conn)
 
@@ -258,6 +259,26 @@ def _migrate_sources(conn: sqlite3.Connection) -> None:
     cols = {str(r[1]) for r in conn.execute("PRAGMA table_info(sources)").fetchall()}
     if "tag" not in cols:
         conn.execute("ALTER TABLE sources ADD COLUMN tag TEXT NOT NULL DEFAULT ''")
+
+
+def _migrate_clear_source_account_bind(conn: sqlite3.Connection) -> None:
+    """Régi hiba: forrás account_id → csak Gmailen keresett. Minden fiókban keresünk."""
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+    )
+    done = conn.execute(
+        "SELECT value FROM app_meta WHERE key = ?",
+        ("sources_account_id_cleared_v1",),
+    ).fetchone()
+    if done:
+        return
+    n = conn.execute(
+        "UPDATE sources SET account_id = NULL WHERE account_id IS NOT NULL AND TRIM(account_id) != ''"
+    ).rowcount
+    conn.execute(
+        "INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)",
+        ("sources_account_id_cleared_v1", str(n)),
+    )
 
 
 def _migrate_messages(conn: sqlite3.Connection) -> None:
