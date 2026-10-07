@@ -241,16 +241,41 @@ class AccountsWindow(ctk.CTkToplevel):
             ).startswith("xxxx")
             status = "OK" if pwd_ok and "@" in email and "SAJAT@" not in email.upper() else "hiányos"
             text = f"{label}\n{email}  ·  {prov}  ·  {host}  ·  {status}"
+            
+            # Fiók sor: szerkesztés gomb + info + törlés gomb
+            row = ctk.CTkFrame(self.list_frame, fg_color="transparent")
+            row.pack(fill="x", pady=3)
+            
             ctk.CTkButton(
-                self.list_frame,
+                row,
+                text="✎",
+                width=32,
+                height=48,
+                font=("Segoe UI", 14),
+                command=lambda a=acc: self._load_into_form(a),
+            ).pack(side="left", padx=(0, 4))
+            
+            ctk.CTkButton(
+                row,
                 text=text,
                 anchor="w",
-                height=52,
+                height=48,
                 fg_color=("gray85", "gray25"),
                 text_color=("gray10", "gray90"),
                 hover_color=("gray75", "gray35"),
                 command=lambda a=acc: self._load_into_form(a),
-            ).pack(fill="x", pady=3)
+            ).pack(side="left", fill="both", expand=True)
+            
+            ctk.CTkButton(
+                row,
+                text="🗑",
+                width=32,
+                height=48,
+                font=("Segoe UI", 12),
+                fg_color="#8B3A3A",
+                hover_color="#6E2E2E",
+                command=lambda a=acc: self._delete_account(a),
+            ).pack(side="left", padx=(4, 0))
 
     def _load_into_form(self, acc: dict[str, Any]) -> None:
         self._selected_id = acc.get("id") or None
@@ -368,3 +393,53 @@ class AccountsWindow(ctk.CTkToplevel):
         self._reload_list()
         if self._on_saved:
             self._on_saved()
+
+    def _delete_account(self, acc: dict[str, Any]) -> None:
+        """Fiók törlése megerősítéssel."""
+        email = acc.get("email") or "(nincs e-mail)"
+        label = acc.get("label") or email
+        
+        dlg = ctk.CTkToplevel(self)
+        dlg.title("Fiók törlése")
+        dlg.geometry("400x180")
+        dlg.resizable(False, False)
+        dlg.transient(self)
+        dlg.grab_set()
+        
+        from app.window_util import center_window
+        center_window(dlg, 400, 180)
+        
+        ctk.CTkLabel(
+            dlg,
+            text=f"Biztosan törlöd a(z) {label} fiókot?\n{email}",
+            justify="center",
+            wraplength=360,
+        ).pack(padx=16, pady=16)
+        
+        btn_row = ctk.CTkFrame(dlg, fg_color="transparent")
+        btn_row.pack(padx=16, pady=8)
+        
+        def confirm_delete() -> None:
+            cfg = load_config()
+            acc_id = acc.get("id")
+            email_lower = (acc.get("email") or "").lower()
+            new_accounts = []
+            for raw in cfg.get("accounts") or []:
+                if not isinstance(raw, dict):
+                    continue
+                if acc_id and str(raw.get("id") or "") == acc_id:
+                    continue
+                if email_lower and str(raw.get("email") or "").lower() == email_lower:
+                    continue
+                new_accounts.append(raw)
+            cfg["accounts"] = new_accounts
+            save_config(cfg)
+            self.hint.configure(text=f"Fiók törölve: {label}")
+            self._reload_list()
+            self._clear_form()
+            dlg.destroy()
+            if self._on_saved:
+                self._on_saved()
+        
+        ctk.CTkButton(btn_row, text="Törlés", fg_color="#8B3A3A", hover_color="#6E2E2E", command=confirm_delete).pack(side="left", padx=4)
+        ctk.CTkButton(btn_row, text="Mégse", command=dlg.destroy).pack(side="left", padx=4)
