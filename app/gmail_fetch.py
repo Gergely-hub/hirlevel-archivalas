@@ -38,6 +38,47 @@ def _emit(progress: ProgressCb | None, msg: str) -> None:
         progress(msg)
 
 
+def _oauth_access_token(acc: Account) -> str | None:
+    if acc.auth_method != "oauth2":
+        return None
+    from app.oauth2_outlook import try_refresh_account_tokens
+
+    if acc.oauth_refresh_token:
+        ref = try_refresh_account_tokens(acc.oauth_refresh_token)
+        if ref:
+            return ref["oauth_token"]
+    tok = (acc.oauth_token or "").strip()
+    return tok or None
+
+
+def _imap_login(mail: imaplib.IMAP4_SSL, acc: Account, progress: ProgressCb | None) -> None:
+    if acc.auth_method == "oauth2":
+        token = _oauth_access_token(acc)
+        if not token:
+            raise imaplib.IMAP4.error(
+                "OAuth2: nincs token — Levelező fiókok → Microsoft OAuth bejelentkezés"
+            )
+        _emit(progress, f"🔑 OAuth2 (XOAUTH2): {acc.email}")
+        auth_string = base64.b64encode(
+            f"user={acc.email}\1auth=Bearer {token}\1\1".encode()
+        )
+        mail.authenticate("XOAUTH2", lambda x: auth_string)
+        return
+    _emit(progress, f"🔑 Jelszó login: {acc.email}")
+    mail.login(acc.email, acc.app_password)
+
+
+def _login_error_message(acc: Account, exc: BaseException) -> str:
+    raw = str(exc)
+    low = raw.lower()
+    if "basic authentication is disabled" in low:
+        return (
+            f"{acc.label}: Outlook nem enged sima jelszót (Basic auth tiltva). "
+            "Válaszd az OAuth2 módot → Microsoft OAuth bejelentkezés."
+        )
+    return f"{acc.label}: bejelentkezés sikertelen — {raw[:120]}"
+
+
 def _decode_header_value(raw: str | None) -> str:
     if not raw:
         return ""
@@ -443,23 +484,13 @@ def _fetch_one_account(
         _emit(progress, f"🔌 Kapcsolódás: {acc.imap_host}:{acc.imap_port} ({acc.auth_method})")
 
         mail = imaplib.IMAP4_SSL(acc.imap_host, int(acc.imap_port or 993), timeout=45)
-
-        if acc.auth_method == "oauth2" and acc.oauth_token:
-            _emit(progress, f"🔑 OAuth2 login: {acc.email}")
-            auth_string = base64.b64encode(
-                f"user={acc.email}\1auth=Bearer {acc.oauth_token}\1\1".encode()
-            )
-            mail.authenticate("XOAUTH2", lambda x: auth_string)
-        else:
-            _emit(progress, f"🔑 Jelszó login: {acc.email}")
-            mail.login(acc.email, acc.app_password)
-
+        _imap_login(mail, acc, progress)
         _emit(progress, f"✅ Bejelentkezés OK: {acc.label}")
     except imaplib.IMAP4.error as exc:
         _emit(progress, f"❌ IMAP login hiba ({acc.email}): {str(exc)[:100]}")
         return 0
     except Exception as exc:
-        _emit(progress, f"❌ Csatlakozási hiba ({acc.imap_host}): {str(exc)[:100]}")
+        _emit(progress, _login_error_message(acc, exc))
         return 0
 
     known = known_gmail_uids(acc.id)
@@ -631,17 +662,10 @@ def _fetch_one_source_on_account(
     )
     try:
         mail = imaplib.IMAP4_SSL(acc.imap_host, int(acc.imap_port or 993), timeout=45)
-
-        if acc.auth_method == "oauth2" and acc.oauth_token:
-            auth_string = base64.b64encode(
-                f"user={acc.email}\1auth=Bearer {acc.oauth_token}\1\1".encode()
-            )
-            mail.authenticate("XOAUTH2", lambda x: auth_string)
-        else:
-            mail.login(acc.email, acc.app_password)
+        _imap_login(mail, acc, progress)
         sync_debug.log(f"{acc.label}: bejelentkezés OK")
     except Exception as exc:
-        _emit(progress, f"{acc.label}: bejelentkezés sikertelen — {str(exc)[:80]}")
+        _emit(progress, _login_error_message(acc, exc))
         return 0
 
     try:
@@ -797,15 +821,7 @@ def refresh_one_message_html(msg_id: int) -> bool:
 
     try:
         mail = imaplib.IMAP4_SSL(acc.imap_host, int(acc.imap_port or 993), timeout=45)
-        
-        # OAuth2 vagy jelszó autentikáció
-        if acc.auth_method == "oauth2" and acc.oauth_token:
-            auth_string = base64.b64encode(
-                f"user={acc.email}\1auth=Bearer {acc.oauth_token}\1\1".encode()
-            )
-            mail.authenticate('XOAUTH2', lambda x: auth_string)
-        else:
-            mail.login(acc.email, acc.app_password)
+        _imap_login(mail, acc, None)
     except Exception:
         return False
 

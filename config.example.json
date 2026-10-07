@@ -5,6 +5,7 @@
   "ui_theme": "dark",
   "sync_max_per_source": 40,
   "import_max_per_source": 500,
+  "microsoft_oauth_client_id": "",
   "backup_auto": false,
   "backup_interval": "weekly",
   "backup_target": "local",

@@ -28,7 +28,10 @@ PROVIDERS: list[ImapProvider] = [
         label="Outlook / Hotmail / Live",
         host="outlook.office365.com",
         help_url="https://account.microsoft.com/security",
-        hint="Microsoft: IMAP engedély + gyakran alkalmazásjelszó. Céges Exchange néha nem enged IMAP-ot.",
+        hint=(
+            "Microsoft: sok fióknál a sima jelszós IMAP tiltva (Basic auth). "
+            "OAuth2 + „Microsoft OAuth bejelentkezés” kell. IMAP engedély a fiókban."
+        ),
     ),
     ImapProvider(
         key="yahoo",

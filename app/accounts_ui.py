@@ -172,13 +172,32 @@ class AccountsWindow(ctk.CTkToplevel):
         )
         self.oauth_hint.grid(row=8, column=0, columnspan=2, sticky="ew", padx=8, pady=(0, 4))
 
-        ctk.CTkLabel(form, text="IMAP szerver").grid(row=9, column=0, sticky="w", padx=8, pady=4)
-        self.entry_host = ctk.CTkEntry(form, placeholder_text="imap.pelda.hu")
-        self.entry_host.grid(row=9, column=1, sticky="ew", padx=8, pady=4)
+        self.oauth_btn = ctk.CTkButton(
+            form,
+            text="Microsoft OAuth bejelentkezés (eszközkód)…",
+            command=self._microsoft_oauth_login,
+        )
+        self.oauth_btn.grid(row=9, column=0, columnspan=2, sticky="ew", padx=8, pady=4)
 
-        ctk.CTkLabel(form, text="IMAP port").grid(row=10, column=0, sticky="w", padx=8, pady=4)
+        self.lbl_ms_client = ctk.CTkLabel(form, text="Azure app ID (OAuth)")
+        self.lbl_ms_client.grid(row=10, column=0, sticky="w", padx=8, pady=4)
+        self.entry_ms_client = ctk.CTkEntry(
+            form, placeholder_text="Application (client) ID — egyszer, minden Outlook fiókhoz"
+        )
+        self.entry_ms_client.grid(row=10, column=1, sticky="ew", padx=8, pady=4)
+        from app.oauth2_outlook import microsoft_client_id
+
+        cid = microsoft_client_id()
+        if cid:
+            self.entry_ms_client.insert(0, cid)
+
+        ctk.CTkLabel(form, text="IMAP szerver").grid(row=11, column=0, sticky="w", padx=8, pady=4)
+        self.entry_host = ctk.CTkEntry(form, placeholder_text="imap.pelda.hu")
+        self.entry_host.grid(row=11, column=1, sticky="ew", padx=8, pady=4)
+
+        ctk.CTkLabel(form, text="IMAP port").grid(row=12, column=0, sticky="w", padx=8, pady=4)
         self.entry_port = ctk.CTkEntry(form, placeholder_text="993", width=80)
-        self.entry_port.grid(row=10, column=1, sticky="w", padx=8, pady=4)
+        self.entry_port.grid(row=12, column=1, sticky="w", padx=8, pady=4)
         self.entry_port.insert(0, "993")
 
         self.provider_hint = ctk.CTkLabel(
@@ -189,7 +208,7 @@ class AccountsWindow(ctk.CTkToplevel):
             wraplength=420,
             justify="left",
         )
-        self.provider_hint.grid(row=11, column=0, columnspan=2, sticky="ew", padx=8, pady=(4, 8))
+        self.provider_hint.grid(row=13, column=0, columnspan=2, sticky="ew", padx=8, pady=(4, 8))
 
         self.auth_method_var.set("Normál jelszó")
 
@@ -231,16 +250,25 @@ class AccountsWindow(ctk.CTkToplevel):
             (self.lbl_password, self.entry_password, self.password_hint),
             not is_oauth,
         )
-        _show(
-            (
-                self.lbl_oauth,
-                self.entry_oauth_token,
-                self.lbl_oauth_refresh,
-                self.entry_oauth_refresh,
-                self.oauth_hint,
-            ),
-            is_oauth,
+        oauth_widgets = (
+            self.lbl_oauth,
+            self.entry_oauth_token,
+            self.lbl_oauth_refresh,
+            self.entry_oauth_refresh,
+            self.oauth_hint,
+            self.oauth_btn,
+            self.lbl_ms_client,
+            self.entry_ms_client,
         )
+        _show(oauth_widgets, is_oauth)
+        if is_oauth:
+            self.oauth_hint.configure(
+                text=(
+                    "Outlook: a sima jelszó gyakran tiltott (Basic auth). "
+                    "OAuth2 → eszközkód a microsoft.com/devicelogin oldalon (2FA ott). "
+                    "Azure app ID egyszer kell (ingyenes regisztráció)."
+                )
+            )
         if not is_oauth:
             self.password_hint.configure(
                 text="Outlook/Gmail: gyakran 16 karakteres alkalmazásjelszó (2FA után)."
@@ -481,6 +509,10 @@ class AccountsWindow(ctk.CTkToplevel):
             accounts.append(payload)
             self._selected_id = acc_id
 
+        ms_cid = self.entry_ms_client.get().strip()
+        if ms_cid:
+            cfg["microsoft_oauth_client_id"] = ms_cid
+
         cfg["accounts"] = accounts
         save_config(cfg)
         msg = f"✅ Mentve: {email} → {host}:{port}"
@@ -489,6 +521,62 @@ class AccountsWindow(ctk.CTkToplevel):
         if self._on_saved:
             self._on_saved()
         self.after(3000, lambda: self.hint.configure(text=f"Mentés ide: {CONFIG_PATH}", text_color=("gray40", "gray65")))
+
+    def _microsoft_oauth_login(self) -> None:
+        import threading
+
+        from app.oauth2_outlook import run_device_login, set_microsoft_client_id
+
+        email = self.entry_email.get().strip()
+        if not email or "@" not in email:
+            self.hint.configure(text="Előbb add meg az Outlook e-mail címet.")
+            return
+
+        cid = self.entry_ms_client.get().strip()
+        if not cid:
+            self.hint.configure(text="Add meg az Azure Application (client) ID-t.")
+            return
+        set_microsoft_client_id(cid)
+        self.auth_method_var.set("OAuth2")
+        self._on_auth_change()
+
+        dlg = ctk.CTkToplevel(self)
+        dlg.title("Microsoft OAuth")
+        dlg.geometry("480x220")
+        dlg.transient(self)
+        dlg.grab_set()
+        from app.window_util import center_window
+
+        center_window(dlg, 480, 220)
+        status_lbl = ctk.CTkLabel(dlg, text="Indul…", wraplength=440, justify="left")
+        status_lbl.pack(fill="both", expand=True, padx=16, pady=16)
+
+        def set_status(msg: str) -> None:
+            self.after(0, lambda: status_lbl.configure(text=msg))
+
+        def work() -> None:
+            try:
+                tok = run_device_login(on_status=set_status)
+            except Exception as exc:
+                self.after(0, lambda: status_lbl.configure(text=str(exc)))
+                return
+            if not tok:
+                return
+
+            def done() -> None:
+                self.entry_oauth_token.delete(0, "end")
+                self.entry_oauth_token.insert(0, tok.get("access_token") or "")
+                self.entry_oauth_refresh.delete(0, "end")
+                self.entry_oauth_refresh.insert(0, tok.get("refresh_token") or "")
+                self.hint.configure(
+                    text="OAuth token megvan — kattints a Mentés gombra.",
+                    text_color="#6BCB77",
+                )
+                dlg.destroy()
+
+            self.after(0, done)
+
+        threading.Thread(target=work, daemon=True).start()
 
     def _delete(self) -> None:
         if not self._selected_id and not self.entry_email.get().strip():

@@ -1,140 +1,153 @@
-"""Microsoft Outlook OAuth2 (XOAUTH2 IMAP támogatás)."""
+"""Microsoft Outlook OAuth2 — eszközkód (device code), IMAP XOAUTH2."""
 
 from __future__ import annotations
 
 import json
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
-from pathlib import Path
+from typing import Any
 
-from app.paths import ROOT
+from app.db import load_config, save_config
 
+# Delegált IMAP (Outlook.com / Microsoft 365)
+IMAP_SCOPE = "https://outlook.office.com/IMAP.AccessAsUser.All offline_access openid email profile"
 
-# Microsoft Azure App Registration
-# https://portal.azure.com → App registrations → New registration
-# Name: Hírlevél Követő
-# Redirect URI: http://localhost:8889/callback
-CLIENT_ID = "3c1d5b3d-1234-4abc-abcd-abc123def456"  # Szükséges: tényleges ID
-CLIENT_SECRET = "your-secret-here"  # Szükséges: titkos kulcs
-REDIRECT_URI = "http://localhost:8889/callback"
-
-OAUTH_CACHE = ROOT / "oauth2_outlook.json"
+TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+DEVICE_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
 
 
-def get_cached_token() -> dict | None:
-    """Cachelezett token lekérdezése."""
-    if not OAUTH_CACHE.exists():
-        return None
+def microsoft_client_id() -> str:
+    cfg = load_config()
+    cid = str(cfg.get("microsoft_oauth_client_id") or "").strip()
+    return cid
+
+
+def set_microsoft_client_id(client_id: str) -> None:
+    cfg = load_config()
+    cfg["microsoft_oauth_client_id"] = client_id.strip()
+    save_config(cfg)
+
+
+def start_device_flow(client_id: str) -> dict[str, Any]:
+    body = urllib.parse.urlencode(
+        {"client_id": client_id, "scope": IMAP_SCOPE}
+    ).encode("utf-8")
+    req = urllib.request.Request(DEVICE_URL, data=body, method="POST")
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def poll_device_tokens(client_id: str, device_code: str) -> dict[str, Any]:
+    body = urllib.parse.urlencode(
+        {
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+            "client_id": client_id,
+            "device_code": device_code,
+        }
+    ).encode("utf-8")
+    req = urllib.request.Request(TOKEN_URL, data=body, method="POST")
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def refresh_access_token(client_id: str, refresh_token: str) -> dict[str, Any]:
+    body = urllib.parse.urlencode(
+        {
+            "grant_type": "refresh_token",
+            "client_id": client_id,
+            "refresh_token": refresh_token,
+            "scope": IMAP_SCOPE,
+        }
+    ).encode("utf-8")
+    req = urllib.request.Request(TOKEN_URL, data=body, method="POST")
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def run_device_login(
+    *,
+    on_status: Any = None,
+    timeout_sec: int = 600,
+) -> dict[str, Any] | None:
+    """
+    Eszközkódos Microsoft bejelentkezés (2FA a microsoft.com oldalon).
+    Vissza: access_token, refresh_token, expires_in — vagy None.
+    """
+    client_id = microsoft_client_id()
+    if not client_id:
+        raise ValueError(
+            "Hiányzik a Microsoft OAuth alkalmazás-ID (Azure). "
+            "Add meg a Levelező fiókok ablakban, vagy a config.json "
+            "microsoft_oauth_client_id mezőjében."
+        )
+
+    def status(msg: str) -> None:
+        if on_status:
+            on_status(msg)
+
+    status("Eszközkód kérése…")
+    dev = start_device_flow(client_id)
+    user_code = dev.get("user_code") or ""
+    uri = dev.get("verification_uri") or "https://microsoft.com/devicelogin"
+    message = dev.get("message") or f"Nyisd meg {uri} és add meg: {user_code}"
+    device_code = dev.get("device_code") or ""
+    interval = int(dev.get("interval") or 5)
+    expires = int(dev.get("expires_in") or 900)
+
+    status(f"{message}")
     try:
-        with open(OAUTH_CACHE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return None
-
-
-def save_token(token_data: dict) -> None:
-    """Token mentése cache-be."""
-    try:
-        with open(OAUTH_CACHE, "w", encoding="utf-8") as f:
-            json.dump(token_data, f, indent=2)
-        # Jogok: csak owner olvashatja (jelszó-like adat)
-        OAUTH_CACHE.chmod(0o600)
+        webbrowser.open(uri)
     except Exception:
         pass
 
+    deadline = time.monotonic() + min(timeout_sec, expires)
+    while time.monotonic() < deadline:
+        time.sleep(max(3, interval))
+        try:
+            tok = poll_device_tokens(client_id, device_code)
+        except urllib.error.HTTPError as exc:
+            err_body = exc.read().decode("utf-8", errors="replace")
+            try:
+                err = json.loads(err_body)
+            except json.JSONDecodeError:
+                err = {"error": err_body}
+            code = str(err.get("error") or "")
+            if code in ("authorization_pending", "slow_down"):
+                status("Várakozás a Microsoft bejelentkezésre…")
+                continue
+            if code == "expired_token":
+                status("Lejárt az eszközkód — indítsd újra.")
+                return None
+            raise ValueError(err.get("error_description") or err_body) from exc
 
-def request_token(email: str) -> dict | None:
-    """
-    Interactive OAuth2 flow:
-    1. Felhasználó böngészőjét megnyitjuk
-    2. Microsoft login
-    3. Callback: localhost:8889-re
-    4. Token lekérdezése
-    """
-    
-    # Ezt csak akkor értelmes, ha van tényleges CLIENT_ID és CLIENT_SECRET
-    # (jelenleg placeholder)
-    
-    auth_url = (
-        "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?"
-        f"client_id={CLIENT_ID}"
-        f"&scope=offline_access%20https://outlook.office365.com/.default"
-        f"&response_type=code"
-        f"&redirect_uri={urllib.parse.quote(REDIRECT_URI)}"
-    )
-    
-    # Böngésző megnyitása
-    print(f"Nyitom a böngészőt: {auth_url}")
-    webbrowser.open(auth_url)
-    
-    # Ideális: HTTP callback szervert indítanánk, de egyszerűbb:
-    # Felhasználó kézzel másolja be a callback URL-t
-    # Authorization code lekérdezése
-    
-    callback_url = input(
-        "Microsoft login után másolj be a redirect URL-t (localhost:8889/callback?code=...): "
-    ).strip()
-    
-    # Code kinyerése
-    if "code=" not in callback_url:
-        return None
-    
-    code = callback_url.split("code=")[1].split("&")[0]
-    
-    # Token kérés
-    token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-    token_data = {
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "code": code,
-        "redirect_uri": REDIRECT_URI,
-        "grant_type": "authorization_code",
-        "scope": "offline_access https://outlook.office365.com/.default",
-    }
-    
-    try:
-        req = urllib.request.Request(
-            token_url,
-            data=urllib.parse.urlencode(token_data).encode("utf-8"),
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            token_response = json.loads(resp.read().decode("utf-8"))
-            
-        if "access_token" in token_response:
-            save_token(token_response)
-            return token_response
-        else:
-            print(f"Token hiba: {token_response.get('error_description')}")
-            return None
-    except Exception as e:
-        print(f"Token kérés hiba: {e}")
-        return None
+        if tok.get("access_token"):
+            status("Microsoft bejelentkezés sikeres.")
+            return tok
+        status("Várakozás…")
 
-
-def get_access_token(email: str) -> str | None:
-    """
-    Access token lekérdezése (refresh vagy új).
-    Egyelőre: placeholder (prod-ban: refresh token kezelés).
-    """
-    cached = get_cached_token()
-    if cached and "access_token" in cached:
-        # TODO: Check expiry, refresh if needed
-        return cached["access_token"]
-    
-    # Nincs cached token → új login
-    token = request_token(email)
-    if token:
-        return token.get("access_token")
-    
+    status("Időtúllépés — nem érkezett bejelentkezés.")
     return None
 
 
-def clear_cached_token() -> None:
-    """Token törlése (kijelentkezés)."""
-    if OAUTH_CACHE.exists():
-        try:
-            OAUTH_CACHE.unlink()
-        except Exception:
-            pass
+def try_refresh_account_tokens(
+    oauth_refresh_token: str | None,
+) -> dict[str, str] | None:
+    """Refresh token → új access (+ esetleg refresh). None ha nem sikerült."""
+    if not oauth_refresh_token:
+        return None
+    client_id = microsoft_client_id()
+    if not client_id:
+        return None
+    try:
+        tok = refresh_access_token(client_id, oauth_refresh_token)
+    except Exception:
+        return None
+    if not tok.get("access_token"):
+        return None
+    return {
+        "oauth_token": str(tok["access_token"]),
+        "oauth_refresh_token": str(tok.get("refresh_token") or oauth_refresh_token),
+    }
