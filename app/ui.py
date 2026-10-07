@@ -1306,6 +1306,11 @@ class App(ctk.CTk):
                 "Levelezés",
                 [
                     {"kind": "command", "label": "Levelező fiókok…", "command": self._open_accounts},
+                    {
+                        "kind": "command",
+                        "label": "Szinkron napló megnyitása…",
+                        "command": self._open_sync_log,
+                    },
                     {"kind": "command", "label": "Új hírlevél felvétel", "command": self._add_newsletter},
                     {"kind": "separator"},
                     {"kind": "command", "label": "Most ellenőriz", "command": self._sync_async},
@@ -2161,6 +2166,29 @@ class App(ctk.CTk):
             disable_autostart()
             self._set_status("Automatikus indítás kikapcsolva.", force=True)
         self._autostart_var.set(is_autostart_enabled())
+
+    def _open_sync_log(self) -> None:
+        import os
+        import subprocess
+        import sys
+
+        from app import sync_debug
+        from app.paths import ensure_data_dir
+
+        ensure_data_dir()
+        path = sync_debug.LOG_PATH
+        if not path.exists():
+            path.write_text(
+                "Még nincs szinkron napló. Futtass Most ellenőriz vagy 🔄 gombot.\n",
+                encoding="utf-8",
+            )
+        try:
+            if sys.platform == "win32":
+                os.startfile(str(path))  # noqa: S606
+            else:
+                subprocess.run(["xdg-open", str(path)], check=False)
+        except OSError as exc:
+            self._set_status(f"Napló: {path} ({exc})", force=True)
 
     def _open_accounts(self) -> None:
         from app.accounts_ui import AccountsWindow
@@ -4009,7 +4037,13 @@ class App(ctk.CTk):
                 if not totals:
                     summary = "Nincs beállított levelező fiók. Levelezés → Levelező fiókok…"
                 else:
-                    summary = f"Kész — {total_new} új levél. {datetime.now():%H:%M}"
+                    from app import sync_debug
+
+                    summary = (
+                        f"Kész — {total_new} új levél. {datetime.now():%H:%M} "
+                        f"(napló: Levelezés → Szinkron napló…)"
+                    )
+                    sync_debug.log(f"GLOBÁLIS SZINKRON vége: összesen {total_new} új")
             except Exception as exc:
                 summary = f"Hiba: {exc}"
 

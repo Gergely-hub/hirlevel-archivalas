@@ -14,6 +14,7 @@ from typing import Callable
 
 from bs4 import BeautifulSoup
 
+from app import sync_debug
 from app.db import (
     Account,
     Source,
@@ -29,6 +30,12 @@ from app.db import (
 )
 
 ProgressCb = Callable[[str], None]
+
+
+def _emit(progress: ProgressCb | None, msg: str) -> None:
+    sync_debug.log(msg)
+    if progress:
+        progress(msg)
 
 
 def _decode_header_value(raw: str | None) -> str:
@@ -301,10 +308,21 @@ def fetch_all_accounts(
 ) -> dict[str, int]:
     """Inkrementális szinkron (alap), vagy full_import=True az előzményekhez."""
     cfg = load_config()
+    raw_count = len(cfg.get("accounts") or [])
     accounts = get_accounts(cfg)
+    sync_debug.session_banner(
+        "GLOBÁLIS SZINKRON",
+        full_import=full_import,
+        fiokok=len(accounts),
+        config_ben=raw_count,
+    )
+    if raw_count > len(accounts):
+        sync_debug.log(
+            f"Figyelem: config.json-ban {raw_count} fiók, "
+            f"de csak {len(accounts)} használható (hiányzó/placeholder jelszó?)."
+        )
     if not accounts:
-        if progress:
-            progress("Nincs beállított levelező fiók.")
+        _emit(progress, "Nincs beállított levelező fiók.")
         return {}
 
     if full_import:
@@ -316,6 +334,15 @@ def fetch_all_accounts(
 
     sources = list_sources(active_only=True)
     by_email = {s.email.lower(): s for s in sources}
+    sync_debug.log(
+        f"Hírlevél-források ({len(sources)}): "
+        + ", ".join(f"{s.name}<{s.email}>" for s in sources[:40])
+        + (" …" if len(sources) > 40 else "")
+    )
+    for acc in accounts:
+        sync_debug.log(f"Fiók betöltve: {acc.label} login={acc.email} host={acc.imap_host}")
+    sync_debug.log(f"max_per={max_per} (forrásonként / mappánként legfeljebb ennyi UID)")
+
     totals: dict[str, int] = {}
 
     for acc in accounts:
@@ -338,39 +365,29 @@ def _fetch_one_account(
     max_per: int,
     full_import: bool,
 ) -> int:
-    if progress:
-        progress(f"Kapcsolódás: {acc.email} ({acc.imap_host}) …")
+    _emit(progress, f"Kapcsolódás: {acc.email} ({acc.imap_host}) …")
 
     try:
-        if progress:
-            progress(f"🔌 Kapcsolódás: {acc.imap_host}:{acc.imap_port} ({acc.auth_method})")
-        
+        _emit(progress, f"🔌 Kapcsolódás: {acc.imap_host}:{acc.imap_port} ({acc.auth_method})")
+
         mail = imaplib.IMAP4_SSL(acc.imap_host, int(acc.imap_port or 993), timeout=45)
-        
-        # OAuth2 vagy jelszó autentikáció
+
         if acc.auth_method == "oauth2" and acc.oauth_token:
-            # XOAUTH2 formátum: Gmail és Outlook támogatja
-            if progress:
-                progress(f"🔑 OAuth2 login: {acc.email}")
+            _emit(progress, f"🔑 OAuth2 login: {acc.email}")
             auth_string = base64.b64encode(
                 f"user={acc.email}\1auth=Bearer {acc.oauth_token}\1\1".encode()
             )
-            mail.authenticate('XOAUTH2', lambda x: auth_string)
+            mail.authenticate("XOAUTH2", lambda x: auth_string)
         else:
-            # Fallback: egyszerű jelszó
-            if progress:
-                progress(f"🔑 Jelszó login: {acc.email}")
+            _emit(progress, f"🔑 Jelszó login: {acc.email}")
             mail.login(acc.email, acc.app_password)
-        
-        if progress:
-            progress(f"✅ Bejelentkezés OK: {acc.label}")
+
+        _emit(progress, f"✅ Bejelentkezés OK: {acc.label}")
     except imaplib.IMAP4.error as exc:
-        if progress:
-            progress(f"❌ IMAP login hiba ({acc.email}): {str(exc)[:100]}")
+        _emit(progress, f"❌ IMAP login hiba ({acc.email}): {str(exc)[:100]}")
         return 0
     except Exception as exc:
-        if progress:
-            progress(f"❌ Csatlakozási hiba ({acc.imap_host}): {str(exc)[:100]}")
+        _emit(progress, f"❌ Csatlakozási hiba ({acc.imap_host}): {str(exc)[:100]}")
         return 0
 
     known = known_gmail_uids(acc.id)
@@ -384,6 +401,7 @@ def _fetch_one_account(
 
     def maybe_progress(msg: str) -> None:
         nonlocal last_progress
+        sync_debug.log(msg)
         if not progress:
             return
         now = time.monotonic()
@@ -394,8 +412,10 @@ def _fetch_one_account(
 
     try:
         folders = _pick_folders(mail, full_import=full_import)
+        sync_debug.log(f"{acc.label}: mappák ({len(folders)}): {', '.join(folders[:12])}")
         for folder in folders:
             if not _select_folder(mail, folder):
+                sync_debug.log(f"{acc.label}: mappa nem választható: {folder!r}")
                 continue
             maybe_progress(f"{acc.label}: {folder}")
             # Kukában többet nézünk — ott lehetnek a törölt HTML-es példányok
@@ -411,9 +431,18 @@ def _fetch_one_account(
                 criteria = f'(FROM "{email_addr}")'
                 typ, data = mail.search(None, criteria)
                 if typ != "OK" or not data or not data[0]:
+                    sync_debug.log(
+                        f"SEARCH {acc.label} / {folder} / {source.name}: "
+                        f"criteria={criteria} → typ={typ!r} találat=0"
+                    )
                     continue
 
-                uids = data[0].split()[-folder_limit:]
+                uid_list = data[0].split()
+                sync_debug.log(
+                    f"SEARCH {acc.label} / {folder} / {source.name}: "
+                    f"{len(uid_list)} UID (feldolgozás max {folder_limit})"
+                )
+                uids = uid_list[-folder_limit:]
                 for raw_uid in reversed(uids):
                     uid_num = _uid_key(raw_uid)
 
@@ -505,11 +534,13 @@ def _fetch_one_account(
     if pending:
         added += insert_messages_bulk(pending)
 
-    if progress:
-        if refreshed:
-            progress(f"{acc.label}: {added} új, {refreshed} HTML frissítve (kuka/INBOX)")
-        else:
-            progress(f"{acc.label}: {added} új levél")
+    if refreshed:
+        _emit(
+            progress,
+            f"{acc.label}: {added} új, {refreshed} HTML frissítve (kuka/INBOX)",
+        )
+    else:
+        _emit(progress, f"{acc.label}: {added} új levél")
     return added + refreshed
 
 
@@ -524,6 +555,10 @@ def _fetch_one_source_on_account(
     known = known_gmail_uids(acc.id)
     added = 0
 
+    sync_debug.log(
+        f"FORRÁS-SZINKRON fiók={acc.label} login={acc.email} "
+        f"forrás={src.name} FROM={src.email!r}"
+    )
     try:
         mail = imaplib.IMAP4_SSL(acc.imap_host, int(acc.imap_port or 993), timeout=45)
 
@@ -534,26 +569,34 @@ def _fetch_one_source_on_account(
             mail.authenticate("XOAUTH2", lambda x: auth_string)
         else:
             mail.login(acc.email, acc.app_password)
+        sync_debug.log(f"{acc.label}: bejelentkezés OK")
     except Exception as exc:
-        if progress:
-            progress(f"{acc.label}: bejelentkezés sikertelen — {str(exc)[:80]}")
+        _emit(progress, f"{acc.label}: bejelentkezés sikertelen — {str(exc)[:80]}")
         return 0
 
     try:
         folders = _pick_folders(mail, full_import=False)
+        sync_debug.log(f"{acc.label}: mappák ({len(folders)}): {', '.join(folders[:12])}")
         for folder in folders:
             if not _select_folder(mail, folder):
+                sync_debug.log(f"{acc.label}: mappa nem választható: {folder!r}")
                 continue
 
-            if progress:
-                progress(f"{acc.label}: {src.name} @ {folder} …")
+            _emit(progress, f"{acc.label}: {src.name} @ {folder} …")
 
             criteria = f'(FROM "{src.email}")'
             typ, data = mail.search(None, criteria)
             if typ != "OK" or not data or not data[0]:
+                sync_debug.log(
+                    f"SEARCH {acc.label}/{folder}: criteria={criteria} → typ={typ!r} találat=0"
+                )
                 continue
 
-            uids = data[0].split()[-40:]
+            uid_list = data[0].split()
+            sync_debug.log(
+                f"SEARCH {acc.label}/{folder}: {len(uid_list)} UID (max 40 feldolgozás)"
+            )
+            uids = uid_list[-40:]
             pending: list[tuple] = []
 
             for raw_uid in reversed(uids):
@@ -599,12 +642,14 @@ def _fetch_one_source_on_account(
 
             if pending:
                 added += insert_messages_bulk(pending)
+            sync_debug.log(f"{acc.label}/{folder}: +{added} új eddig (forrás szinkron)")
     finally:
         try:
             mail.logout()
         except Exception:
             pass
 
+    sync_debug.log(f"FORRÁS-SZINKRON vége fiók={acc.label} forrás={src.name} új={added}")
     return added
 
 
@@ -617,35 +662,43 @@ def fetch_one_source(
 
     src = get_source(source_id)
     if not src:
-        if progress:
-            progress("Forrás nem található")
+        _emit(progress, "Forrás nem található")
         return 0
+
+    sync_debug.session_banner(
+        "FORRÁS 🔄",
+        forrás=src.name,
+        from_email=src.email,
+        source_id=src.id,
+    )
 
     cfg = load_config()
     all_accs = get_accounts(cfg)
     if not all_accs:
-        if progress:
-            progress("Nincs beállított levelező fiók.")
+        _emit(progress, "Nincs beállított levelező fiók.")
         return 0
 
     if src.account_id:
         accs = [a for a in all_accs if a.id == src.account_id]
         if not accs:
-            if progress:
-                progress(f"Ehhez a hírlevélhez rendelt fiók nem található ({src.account_id}).")
+            _emit(
+                progress,
+                f"Ehhez a hírlevélhez rendelt fiók nem található ({src.account_id}).",
+            )
             return 0
     else:
         accs = all_accs
 
-    if progress:
-        progress(f"Szinkronizálás: {src.name} ({src.email}) — {len(accs)} fiók …")
+    for acc in accs:
+        sync_debug.log(f"  fiók: {acc.label} ({acc.email}) @ {acc.imap_host}")
+
+    _emit(progress, f"Szinkronizálás: {src.name} ({src.email}) — {len(accs)} fiók …")
 
     total = 0
     for acc in accs:
         total += _fetch_one_source_on_account(src, acc, progress)
 
-    if progress:
-        progress(f"{src.name}: {total} új levél")
+    _emit(progress, f"{src.name}: {total} új levél (napló: {sync_debug.log_path_str()})")
     return total
 
 
