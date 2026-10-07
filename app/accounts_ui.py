@@ -55,8 +55,8 @@ class AccountsWindow(ctk.CTkToplevel):
         super().__init__(master)
         self.title("Levelező fiókok (IMAP)")
         from app.window_util import center_window
-        center_window(self, 700, 680)
-        self.minsize(520, 560)
+        center_window(self, 700, 850)
+        self.minsize(520, 700)
         self._on_saved = on_saved
         self._selected_id: Optional[str] = None
         self._help_url = PROVIDERS_BY_KEY["gmail"].help_url
@@ -86,17 +86,22 @@ class AccountsWindow(ctk.CTkToplevel):
         )
         self.help_btn.pack(anchor="w", padx=16, pady=(0, 8))
 
-        self.list_frame = ctk.CTkScrollableFrame(self, height=120)
-        self.list_frame.pack(fill="x", padx=16, pady=8)
+        # Görgethető tartalom (lista + form)
+        scroll_container = ctk.CTkScrollableFrame(self)
+        scroll_container.pack(fill="both", expand=True, padx=0, pady=0)
+        scroll_container.grid_columnconfigure(0, weight=1)
+
+        self.list_frame = ctk.CTkScrollableFrame(scroll_container, height=120)
+        self.list_frame.pack(fill="x", padx=16, pady=(8, 0))
 
         # Új fiók hozzáadása gomb
         ctk.CTkButton(
-            self,
+            scroll_container,
             text="+ Új fiók hozzáadása",
             command=self._start_new_account,
-        ).pack(anchor="w", padx=16, pady=(0, 12))
+        ).pack(anchor="w", padx=16, pady=(8, 12))
 
-        form = ctk.CTkFrame(self)
+        form = ctk.CTkFrame(scroll_container)
         form.pack(fill="x", padx=16, pady=8)
         form.grid_columnconfigure(1, weight=1)
 
@@ -161,6 +166,7 @@ class AccountsWindow(ctk.CTkToplevel):
         )
         self.provider_hint.grid(row=9, column=0, columnspan=2, sticky="ew", padx=8, pady=(4, 8))
 
+        # Fix gombok az ablak alján (nem görgethető)
         row = ctk.CTkFrame(self, fg_color="transparent")
         row.pack(fill="x", padx=16, pady=8)
         ctk.CTkButton(row, text="Mentés / hozzáadás", command=self._save).pack(side="left", padx=(0, 8))
@@ -170,7 +176,7 @@ class AccountsWindow(ctk.CTkToplevel):
         ).pack(side="left")
 
         self.hint = ctk.CTkLabel(self, text=f"Mentés ide: {CONFIG_PATH}", anchor="w", wraplength=560)
-        self.hint.pack(fill="x", padx=16, pady=(4, 12))
+        self.hint.pack(fill="x", padx=16, pady=(0, 12))
 
         self._apply_provider_fields(PROVIDERS_BY_KEY["gmail"].key)
         self._reload_list()
