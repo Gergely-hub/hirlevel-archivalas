@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-"""UI színsémák — Világos/Sötét/Kávé + egyedi hangulatú témák
-(Múzsa, Friss reggel, Éjfél, Óceán, Tompa papír, Peónia).
-"""
+"""UI színsémák — klasszikus Világos/Sötét (levelező) + hangulat témák."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -58,54 +56,50 @@ class ThemePalette:
     surface: tuple[str, str]
 
 
-# --- Egyedi hangulatú témák (ne hasonlítsanak egymásra / Kávéra) ---
-# Világos / Sötét / Kávé érintetlen — lent csak a többi.
+# Klasszikus világos levelező (semleges szürke + kék)
+_LIGHT_CLASSIC: dict[str, str] = {
+    "background": "#fafafa",
+    "backgroundAlt": "#f1f3f4",
+    "surface": "#ffffff",
+    "text": "#202124",
+    "textMuted": "#5f6368",
+    "textOnDark": "#ffffff",
+    "primary": "#1a73e8",
+    "primaryMid": "#1557b0",
+    "accent": "#1a73e8",
+    "accentLight": "#f1f3f4",
+    "accentDark": "#1557b0",
+    "chip": "#e8f0fe",
+    "chipActive": "#d2e3fc",
+}
 
 _MOBILE_THEMES: list[dict[str, Any]] = [
     {
-        # Lila–ibolya, kreatív / modern
-        "id": "muza",
-        "label": "Múzsa",
-        "dark_ui": False,
-        "c": {
-            "background": "#f6f3fc",
-            "backgroundAlt": "#ebe4f7",
-            "surface": "#ffffff",
-            "text": "#1a1230",
-            "textMuted": "#6f648a",
-            "textOnDark": "#f8f5ff",
-            "primary": "#6d28d9",
-            "primaryMid": "#5b21b6",
-            "accent": "#a78bfa",
-            "accentLight": "#ddd6fe",
-            "accentDark": "#5b21b6",
-            "chip": "#ede9fe",
-            "chipActive": "#6d28d9",
-        },
-    },
-    {
-        # Élénk menta–zöld, reggeli frissesség
+        # Felkelő nap, megvilágított táj
         "id": "frissReggel",
         "label": "Friss reggel",
         "dark_ui": False,
         "c": {
-            "background": "#f1faf4",
-            "backgroundAlt": "#dff3e8",
-            "surface": "#ffffff",
-            "text": "#0f2419",
-            "textMuted": "#4d6b5a",
-            "textOnDark": "#f0fdf4",
-            "primary": "#15803d",
-            "primaryMid": "#166534",
-            "accent": "#4ade80",
-            "accentLight": "#bbf7d0",
-            "accentDark": "#166534",
-            "chip": "#dcfce7",
-            "chipActive": "#15803d",
+            "background": "#faf3e8",
+            "backgroundAlt": "#f3e4cf",
+            "surface": "#fffefb",
+            "text": "#2c241c",
+            "textMuted": "#6b6358",
+            "textOnDark": "#ffffff",
+            "primary": "#c4783a",
+            "primaryMid": "#a8622e",
+            "accent": "#e8b86d",
+            "accentLight": "#e4ecd8",
+            "accentDark": "#c4863a",
+            "chip": "#f5e8d4",
+            "chipActive": "#c4783a",
+            "leftPanel": "#f3e4cf",
+            "bubbleSel": "#f5e8d4",
+            "sourceHover": "#ede4d4",
         },
     },
     {
-        # Hideg éjkék + égőkék (nem bordó!)
+        # Mély éjkék + csillogó égszín (gombkeret: accentDark)
         "id": "ejfelt",
         "label": "Éjfél",
         "dark_ui": True,
@@ -120,7 +114,7 @@ _MOBILE_THEMES: list[dict[str, Any]] = [
             "primaryMid": "#1d4ed8",
             "accent": "#38bdf8",
             "accentLight": "#1e3a5f",
-            "accentDark": "#1e40af",
+            "accentDark": "#7dd3fc",
             "chip": "#1e293b",
             "chipActive": "#1d4ed8",
         },
@@ -146,7 +140,7 @@ _MOBILE_THEMES: list[dict[str, Any]] = [
         },
     },
     {
-        # Élénk ég–cián, tengerpart
+        # Part: világos hab; mélység: primary / menü mélykék; accent: napfény a vízen
         "id": "ocean",
         "label": "Óceán",
         "dark_ui": False,
@@ -157,34 +151,34 @@ _MOBILE_THEMES: list[dict[str, Any]] = [
             "text": "#0b2e3a",
             "textMuted": "#4a6d78",
             "textOnDark": "#ecfeff",
-            "primary": "#0e7490",
-            "primaryMid": "#155e75",
+            "primary": "#0c4a6e",
+            "primaryMid": "#075985",
             "accent": "#22d3ee",
-            "accentLight": "#a5f3fc",
-            "accentDark": "#155e75",
+            "accentLight": "#b8e4f2",
+            "accentDark": "#0284c7",
             "chip": "#cffafe",
-            "chipActive": "#0e7490",
+            "chipActive": "#0c4a6e",
         },
     },
     {
-        # Hideg zsálya–kő, minimal
+        # Sötétebb barna papír, mint a Világos alap
         "id": "tompaPapir",
         "label": "Tompa papír",
         "dark_ui": False,
         "c": {
-            "background": "#f3f5f2",
-            "backgroundAlt": "#e4e9e3",
-            "surface": "#fbfcfb",
+            "background": "#e8e2d6",
+            "backgroundAlt": "#d4cdc0",
+            "surface": "#f5f2ec",
             "text": "#1c2420",
             "textMuted": "#5f6b64",
             "textOnDark": "#f4f7f5",
-            "primary": "#3d4f46",
-            "primaryMid": "#2f3d36",
-            "accent": "#84a98c",
-            "accentLight": "#cad2c5",
-            "accentDark": "#52796f",
-            "chip": "#dde5df",
-            "chipActive": "#3d4f46",
+            "primary": "#5c4f42",
+            "primaryMid": "#4a4036",
+            "accent": "#7a9278",
+            "accentLight": "#b8bfb0",
+            "accentDark": "#5f7560",
+            "chip": "#ccc4b6",
+            "chipActive": "#5c4f42",
         },
     },
 ]
@@ -226,11 +220,11 @@ def _ctk_from_mobile(c: dict[str, str], *, dark_ui: bool) -> dict[str, Any]:
             "border_color": [muted, muted],
         },
         "CTkButton": {
-            "corner_radius": 6,
-            "border_width": 0,
+            "corner_radius": 7,
+            "border_width": 1,
             "fg_color": [p0, p1],
-            "hover_color": [ad0, ad1],
-            "border_color": [muted, muted],
+            "hover_color": [mid, mid],
+            "border_color": [ad0, ad1],
             "text_color": [btn_text, btn_text],
             "text_color_disabled": [muted, muted],
         },
@@ -272,8 +266,8 @@ def _ctk_from_mobile(c: dict[str, str], *, dark_ui: bool) -> dict[str, Any]:
         },
         "CTkRadioButton": {
             "corner_radius": 1000,
-            "border_width_checked": 6,
-            "border_width_unchecked": 3,
+            "border_width_checked": 4,
+            "border_width_unchecked": 2,
             "fg_color": [ac0, ac1],
             "border_color": [muted, muted],
             "hover_color": [ad0, ad1],
@@ -374,6 +368,9 @@ def _palette_from_mobile(spec: dict[str, Any], json_path: str) -> ThemePalette:
     accent, accent_dark = c["accent"], c["accentDark"]
     accent_light, chip = c["accentLight"], c["chip"]
     chip_active = c["chipActive"]
+    left_panel = c.get("leftPanel") or (accent_light if not dark_ui else alt)
+    bubble_sel = c.get("bubbleSel") or (accent_light if not dark_ui else chip)
+    source_hover = c.get("sourceHover") or (chip if not dark_ui else mid)
     on_btn = c["textOnDark"] if _is_dark_hex(primary) else text
 
     def both(x: str) -> tuple[str, str]:
@@ -384,10 +381,8 @@ def _palette_from_mobile(spec: dict[str, Any], json_path: str) -> ThemePalette:
         label=spec["label"],
         appearance=appearance,
         ctk_theme=json_path,
-        # Asztalon erősebb jel: menü = primary, bal = accentLight (ne majdnem fehér)
         window_bg=both(bg),
-        left_bg=both(accent_light if not dark_ui else alt),
-        # Középső is láthatóan témás (ne csak gombok)
+        left_bg=both(left_panel if not dark_ui else alt),
         mid_bg=both(alt if not dark_ui else bg),
         menubar_bg=both(primary),
         menubar_fg=both(on_btn),
@@ -395,10 +390,10 @@ def _palette_from_mobile(spec: dict[str, Any], json_path: str) -> ThemePalette:
         accent_hover=both(accent_dark),
         source_row=both(surface if not dark_ui else chip),
         source_active=both(chip if not dark_ui else chip_active),
-        source_hover=both(chip if not dark_ui else mid),
+        source_hover=both(source_hover if not dark_ui else mid),
         bubble=both(surface),
         bubble_unread=both(chip),
-        bubble_sel=both(accent_light),
+        bubble_sel=both(bubble_sel),
         day_bar=both(chip if not dark_ui else mid),
         muted=both(muted),
         text=both(text),
@@ -457,71 +452,90 @@ def ensure_theme_files() -> dict[str, str]:
     except OSError:
         pass
     paths["peonia"] = str(peonia)
+    light_json = d / "light.json"
+    try:
+        light_json.write_text(
+            json.dumps(_ctk_from_mobile(_LIGHT_CLASSIC, dark_ui=False), indent=2),
+            encoding="utf-8",
+        )
+    except OSError:
+        pass
+    paths["light"] = str(light_json)
     return paths
 
 
+def _light_palette(json_path: str) -> ThemePalette:
+    c = _LIGHT_CLASSIC
+    text, muted = c["text"], c["textMuted"]
+    primary, mid = c["primary"], c["primaryMid"]
+    accent, accent_dark = c["accent"], c["accentDark"]
+    accent_light, chip = c["accentLight"], c["chip"]
+    on_btn = c["textOnDark"]
+    return ThemePalette(
+        id="light",
+        label="Világos",
+        appearance="Light",
+        ctk_theme=json_path,
+        window_bg=_pair(c["background"], c["background"]),
+        left_bg=_pair(accent_light, accent_light),
+        mid_bg=_pair(c["backgroundAlt"], c["backgroundAlt"]),
+        menubar_bg=_pair(primary, primary),
+        menubar_fg=_pair(on_btn, on_btn),
+        accent=_pair(accent, accent),
+        accent_hover=_pair(accent_dark, accent_dark),
+        source_row=_pair(c["surface"], c["surface"]),
+        source_active=_pair(chip, chip),
+        source_hover=_pair(c["backgroundAlt"], c["backgroundAlt"]),
+        bubble=_pair(c["surface"], c["surface"]),
+        bubble_unread=_pair(chip, chip),
+        bubble_sel=_pair(c["backgroundAlt"], c["backgroundAlt"]),
+        day_bar=_pair(c["backgroundAlt"], c["backgroundAlt"]),
+        muted=_pair(muted, muted),
+        text=_pair(text, text),
+        uj_bg=_pair(primary, primary),
+        uj_fg=_pair(on_btn, on_btn),
+        reader_bg=c["backgroundAlt"],
+        reader_fg=text,
+        primary=_pair(primary, primary),
+        primary_hover=_pair(mid, mid),
+        btn_text=_pair(on_btn, on_btn),
+        surface=_pair(c["surface"], c["surface"]),
+    )
+
+
 def _default_light_dark() -> dict[str, ThemePalette]:
-    """Tiszta kék–szürke — mindkét CTk-slot ugyanaz (ne keveredjen Light/Dark fél)."""
+    """Sötét + ideiglenes világos (felülírja _palettes a light.json path-tal)."""
     return {
-        "light": ThemePalette(
-            id="light",
-            label="Világos",
-            appearance="Light",
-            ctk_theme="blue",
-            window_bg=_pair("#EBEBEB", "#EBEBEB"),
-            left_bg=_pair("#E0E0E0", "#E0E0E0"),
-            mid_bg=_pair("#F2F2F2", "#F2F2F2"),
-            menubar_bg=_pair("#D5D5D5", "#D5D5D5"),
-            menubar_fg=_pair("#1A1A1A", "#1A1A1A"),
-            accent=_pair("#2F6FED", "#2F6FED"),
-            accent_hover=_pair("#2558C0", "#2558C0"),
-            source_row=_pair("#E8E8E8", "#E8E8E8"),
-            source_active=_pair("#D5E4F7", "#D5E4F7"),
-            source_hover=_pair("#D0D0D0", "#D0D0D0"),
-            bubble=_pair("#E4E8EE", "#E4E8EE"),
-            bubble_unread=_pair("#E8F0FC", "#E8F0FC"),
-            bubble_sel=_pair("#C9DBF2", "#C9DBF2"),
-            day_bar=_pair("#C5D0DC", "#C5D0DC"),
-            muted=_pair("#5A5A5A", "#5A5A5A"),
-            text=_pair("#1A1A1A", "#1A1A1A"),
-            uj_bg=_pair("#2F6FED", "#2F6FED"),
-            uj_fg=_pair("#FFFFFF", "#FFFFFF"),
-            reader_bg="#f6f7f9",
-            reader_fg="#1a1a1a",
-            primary=_pair("#3B8ED0", "#3B8ED0"),
-            primary_hover=_pair("#36719F", "#36719F"),
-            btn_text=_pair("#FFFFFF", "#FFFFFF"),
-            surface=_pair("#FAFAFA", "#FAFAFA"),
-        ),
+        "light": _light_palette("blue"),
         "dark": ThemePalette(
             id="dark",
             label="Sötét",
             appearance="Dark",
             ctk_theme="blue",
-            window_bg=_pair("#242424", "#242424"),
-            left_bg=_pair("#2B2B2B", "#2B2B2B"),
-            mid_bg=_pair("#1E1E1E", "#1E1E1E"),
-            menubar_bg=_pair("#2B2B2B", "#2B2B2B"),
-            menubar_fg=_pair("#F0F0F0", "#F0F0F0"),
-            accent=_pair("#6CB6FF", "#6CB6FF"),
-            accent_hover=_pair("#5AA0E8", "#5AA0E8"),
-            source_row=_pair("#333333", "#333333"),
-            source_active=_pair("#3A4A5E", "#3A4A5E"),
-            source_hover=_pair("#404040", "#404040"),
-            bubble=_pair("#2A2A2A", "#2A2A2A"),
-            bubble_unread=_pair("#3A4A5E", "#3A4A5E"),
-            bubble_sel=_pair("#3A4554", "#3A4554"),
-            day_bar=_pair("#333840", "#333840"),
-            muted=_pair("#A0A0A0", "#A0A0A0"),
-            text=_pair("#F0F2F5", "#F0F2F5"),
-            uj_bg=_pair("#3D7FE0", "#3D7FE0"),
-            uj_fg=_pair("#FFFFFF", "#FFFFFF"),
-            reader_bg="#1a1c20",
+            window_bg=_pair("#202124", "#202124"),
+            left_bg=_pair("#2d2e30", "#2d2e30"),
+            mid_bg=_pair("#202124", "#202124"),
+            menubar_bg=_pair("#303134", "#303134"),
+            menubar_fg=_pair("#e8eaed", "#e8eaed"),
+            accent=_pair("#8ab4f8", "#8ab4f8"),
+            accent_hover=_pair("#aecbfa", "#aecbfa"),
+            source_row=_pair("#303134", "#303134"),
+            source_active=_pair("#3c4043", "#3c4043"),
+            source_hover=_pair("#35363a", "#35363a"),
+            bubble=_pair("#303134", "#303134"),
+            bubble_unread=_pair("#3c4043", "#3c4043"),
+            bubble_sel=_pair("#414347", "#414347"),
+            day_bar=_pair("#2d2e30", "#2d2e30"),
+            muted=_pair("#9aa0a6", "#9aa0a6"),
+            text=_pair("#e8eaed", "#e8eaed"),
+            uj_bg=_pair("#669df6", "#669df6"),
+            uj_fg=_pair("#202124", "#202124"),
+            reader_bg="#202124",
             reader_fg="#e8eaed",
-            primary=_pair("#1F6AA5", "#1F6AA5"),
-            primary_hover=_pair("#144870", "#144870"),
-            btn_text=_pair("#DCE4EE", "#DCE4EE"),
-            surface=_pair("#2B2B2B", "#2B2B2B"),
+            primary=_pair("#669df6", "#669df6"),
+            primary_hover=_pair("#8ab4f8", "#8ab4f8"),
+            btn_text=_pair("#202124", "#202124"),
+            surface=_pair("#303134", "#303134"),
         ),
     }
 
@@ -529,6 +543,7 @@ def _default_light_dark() -> dict[str, ThemePalette]:
 def _palettes() -> dict[str, ThemePalette]:
     paths = ensure_theme_files()
     out = _default_light_dark()
+    out["light"] = _light_palette(paths["light"])
     for spec in _MOBILE_THEMES:
         tid = spec["id"]
         out[tid] = _palette_from_mobile(spec, paths[tid])
@@ -585,6 +600,7 @@ def resolve_theme_id(raw: str | None, *, appearance_fallback: str | None = None)
     aliases = {
         "gleam": "light",
         "csillam": "light",
+        "muza": "light",
     }
     if raw and raw in aliases:
         raw = aliases[raw]
@@ -601,27 +617,65 @@ def get_palette(theme_id: str) -> ThemePalette:
     return themes.get(tid) or themes["dark"]
 
 
-def apply_ctk_theme(theme_id: str) -> ThemePalette:
-    """appearance + CTk színfájl. Világos/Sötét: beépített kék, többi: JSON."""
+_LAST_CTK_APPLIED: Optional[tuple[str, str]] = None  # (theme_id, appearance)
+
+
+def apply_ctk_theme(theme_id: str, *, refresh_globals: bool = True) -> ThemePalette:
+    """Paletta; induláskor CTk globális téma is (set_appearance_mode villogást okoz)."""
+    pal = get_palette(theme_id)
+    if not refresh_globals:
+        return pal
+
     import customtkinter as ctk
     from customtkinter.windows.widgets.theme.theme_manager import ThemeManager
 
-    clear_theme_cache()
-    ensure_theme_files()
-    pal = get_palette(theme_id)
-    # Először a témafájl, aztán az appearance — ne maradjon előző séma
-    if pal.id in ("light", "dark"):
+    global _LAST_CTK_APPLIED
+    prev = _LAST_CTK_APPLIED
+    if prev == (pal.id, pal.appearance):
+        return pal
+
+    if pal.id == "dark":
         ctk.set_default_color_theme("blue")
     else:
         ctk.set_default_color_theme(pal.ctk_theme)
-    ctk.set_appearance_mode(pal.appearance)
-    # ThemeManager cache: biztosan az aktuális fájl legyen betöltve
-    try:
-        if pal.id not in ("light", "dark") and pal.ctk_theme:
-            ThemeManager.load_theme(pal.ctk_theme)
-    except Exception:
-        pass
+        try:
+            if pal.ctk_theme and pal.ctk_theme != "blue":
+                ThemeManager.load_theme(pal.ctk_theme)
+        except Exception:
+            pass
+
+    if prev is None or prev[1] != pal.appearance:
+        ctk.set_appearance_mode(pal.appearance)
+
+    _LAST_CTK_APPLIED = (pal.id, pal.appearance)
     return pal
+
+
+def style_button_depth(
+    btn: Any,
+    *,
+    fg: str,
+    hover: str,
+    text: str,
+    border_color: str,
+    corner_radius: int = 7,
+    border_width: int = 1,
+) -> None:
+    """Közös gomb „kiemelés” — főablak, dialógusok."""
+    try:
+        btn.configure(
+            fg_color=fg,
+            hover_color=hover,
+            text_color=text,
+            corner_radius=corner_radius,
+            border_width=border_width,
+            border_color=border_color,
+        )
+    except Exception:
+        try:
+            btn.configure(fg_color=fg, hover_color=hover, text_color=text)
+        except Exception:
+            pass
 
 
 def theme_menu_items() -> list[tuple[str, str]]:
@@ -629,19 +683,12 @@ def theme_menu_items() -> list[tuple[str, str]]:
 
 
 def menu_theme_from_palette(pal: ThemePalette):
-    """CTk menüsáv / legördülő színei a palettából (ne mindig szürke/fehér)."""
+    """Menüsor / legördülő — ugyanaz a téma paletta (menubar_bg, primary hover)."""
     from app.ctk_menu import MenuTheme
 
     bar_is_dark = _is_dark_hex(str(pal.menubar_bg[0]))
-    # Legördülő: világos témánál day_bar, sötétnél surface — ne keveredjen idegen séma
     popup = pal.day_bar if not bar_is_dark else pal.surface
-    # Ablakgombok: Win11 semleges hover, ikon szín = menüsáv szöveg
-    if bar_is_dark:
-        win_btn_text = pal.menubar_fg
-        win_caption_hover = ("#E5E5E5", "#3F3F46")
-    else:
-        win_btn_text = pal.menubar_fg
-        win_caption_hover = ("#E5E5E5", "#3F3F46")
+    win_btn_text = pal.menubar_fg
     return MenuTheme(
         bar_bg=pal.menubar_bg,
         bar_text=pal.menubar_fg,
@@ -650,8 +697,8 @@ def menu_theme_from_palette(pal: ThemePalette):
         hover_text=pal.btn_text,
         text=pal.text,
         muted=pal.muted,
-        border=pal.primary,
+        border=pal.muted,
         btn_hover=pal.primary_hover if bar_is_dark else pal.source_hover,
         win_btn_text=win_btn_text,
-        win_caption_hover=win_caption_hover,
+        win_caption_hover=("#E5E5E5", "#3F3F46"),
     )

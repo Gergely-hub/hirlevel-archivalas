@@ -27,9 +27,9 @@ def main() -> None:
 
     if args.version:
         try:
-            from app.build_info import BUILD_STAMP
+            from app.build_info import BUILD_STAMP, VERSION_LABEL
 
-            print(f"Hírlevél követő — build: {BUILD_STAMP}")
+            print(f"Hírlevél követő {VERSION_LABEL} ({BUILD_STAMP})")
         except Exception:
             print("Hírlevél követő — build: dev")
         sys.exit(0)
@@ -53,11 +53,13 @@ def main() -> None:
             print("A Hírlevél követő már fut.", file=sys.stderr)
         sys.exit(0)
 
+    from app.app_icon import apply_process_app_user_model_id
     from app.db import init_db, load_config
     from app.dpi import apply_ctk_scaling, configure_windows_dpi
 
     scale = configure_windows_dpi()
     apply_ctk_scaling(scale)
+    apply_process_app_user_model_id()
 
     from app.ui import App
 

@@ -2,10 +2,14 @@ from __future__ import annotations
 
 """Kék boríték ikon — tálca, system tray és .exe közös forrása."""
 
+import sys
 from pathlib import Path
 from typing import Any, Optional
 
 from PIL import Image, ImageDraw
+
+# Windows tálca csoportosítás — CTk() előtt (különben python.exe ikon)
+APP_USER_MODEL_ID = "Figye.HirlevelKoveto.1"
 
 # Tray / UI kék
 _BLUE = (36, 99, 235)
@@ -75,6 +79,20 @@ def ensure_ico() -> Path:
         return existing
     dest = Path(__file__).resolve().parent / "assets" / "hirlevel.ico"
     return write_ico(dest)
+
+
+def apply_process_app_user_model_id() -> None:
+    """CTk/Tk ablak előtt — a tálca ne a python.exe ikonját mutassa."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(  # type: ignore[attr-defined]
+            APP_USER_MODEL_ID
+        )
+    except Exception:
+        pass
 
 
 def apply_window_icon(widget: Any) -> None:

@@ -12,9 +12,11 @@ class ImapProvider:
     port: int = 993
     help_url: str = ""
     hint: str = ""
+    # password: jelszó / alkalmazásjelszó IMAP; oauth_microsoft: csak Microsoft bejelentkezés
+    auth: str = "password"
 
 
-# Thunderbird-szerű előre kitöltött IMAP profilok (ProtonMail nincs — Bridge kellene)
+# Thunderbird-szerű előre kitöltött IMAP profilok (ProtonMail: nem támogatott)
 PROVIDERS: list[ImapProvider] = [
     ImapProvider(
         key="gmail",
@@ -28,10 +30,8 @@ PROVIDERS: list[ImapProvider] = [
         label="Outlook / Hotmail / Live",
         host="outlook.office365.com",
         help_url="https://account.microsoft.com/security",
-        hint=(
-            "Microsoft: sok fióknál a sima jelszós IMAP tiltva (Basic auth). "
-            "OAuth2 + „Microsoft OAuth bejelentkezés” kell. IMAP engedély a fiókban."
-        ),
+        auth="oauth_microsoft",
+        hint="Kattints a „Bejelentkezés Microsoft-fiókkal” gombra — a böngészőben jelentkezz be.",
     ),
     ImapProvider(
         key="yahoo",
@@ -70,12 +70,12 @@ PROVIDERS: list[ImapProvider] = [
     ),
     ImapProvider(
         key="custom",
-        label="Egyéni IMAP (mint Thunderbird)",
+        label="Egyéni / más szolgáltató",
         host="",
         help_url="https://support.mozilla.org/hu/kb/automatic-account-configuration",
         hint=(
             "Add meg a szolgáltató IMAP szerverét (host + port, általában 993).\n"
-            "ProtonMail nem támogatott (nincs sima IMAP Bridge nélkül)."
+            "ProtonMail (proton.me, protonmail.com) hivatalosan nem támogatott."
         ),
     ),
 ]
@@ -89,8 +89,11 @@ _DOMAIN_HINTS: dict[str, str] = {
     "gmail.com": "gmail",
     "googlemail.com": "gmail",
     "outlook.com": "outlook",
+    "outlook.hu": "outlook",
     "hotmail.com": "outlook",
+    "hotmail.hu": "outlook",
     "live.com": "outlook",
+    "live.hu": "outlook",
     "msn.com": "outlook",
     "yahoo.com": "yahoo",
     "yahoo.co.uk": "yahoo",
@@ -142,6 +145,11 @@ def resolve_imap(
 def provider_label(key: str) -> str:
     p = PROVIDERS_BY_KEY.get((key or "").lower())
     return p.label if p else "Egyéni IMAP"
+
+
+def provider_uses_microsoft_oauth(provider_key: str) -> bool:
+    p = PROVIDERS_BY_KEY.get((provider_key or "").strip().lower())
+    return bool(p and p.auth == "oauth_microsoft")
 
 
 def supported_providers_summary() -> str:

@@ -1,0 +1,48 @@
+name: Hiba / kérdés
+description: Hibajelzés vagy technikai kérdés
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Köszönjük a jelzést. **ProtonMail** hivatalosan nem támogatott — Bridge / egyéni IMAP esetén a jelzést lezárjuk scope miatt.
+
+  - type: input
+    id: version
+    attributes:
+      label: Verzió
+      description: HirlevelKoveto.exe --version kimenet, vagy Súgó → A Programról
+      placeholder: "1.0.2 (2026-11-05 07:00)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Levelező szolgáltató
+      options:
+        - Gmail
+        - Outlook / Hotmail / Live
+        - Yahoo
+        - iCloud
+        - Freemail / Citromail / Vipmail
+        - Egyéni IMAP
+        - ProtonMail (nem támogatott)
+        - Egyéb / nincs fiók
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Mi történt?
+      description: Lépések, várt vs. tényleges viselkedés, hibaüzenet szövege
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: smoke
+    attributes:
+      label: Ellenőrizve
+      options:
+        - label: Kapcsolatteszt a Levelező fiókok ablakban
+        - label: A program a zip-ből kicsomagolva fut (nem régi, más mappában lévő exe)

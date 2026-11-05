@@ -2,6 +2,7 @@
 cd /d "%~dp0"
 setlocal
 
+REM Opcionális — nyilvános terjesztéshez BUILD-ZIP.cmd (aláírás nélkül is oké).
 REM 1) Friss program\ mappa (PyInstaller)
 call "%~dp0BUILD-EXE.cmd"
 if errorlevel 1 (

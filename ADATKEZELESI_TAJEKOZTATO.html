@@ -40,7 +40,7 @@
 
 <h2>1. Bevezetés</h2>
 <p>A <strong>Hírlevél követő</strong> egy asztali számítógépes program, amely lehetővé teszi a felhasználók számára e-mail hírlevelek helyi archiválását és kezelését. Ez az adatkezelési tájékoztató ismerteti, hogyan kezeljük az Ön személyes adatait az alkalmazás használata során.</p>
-<p><strong>Alapelv:</strong> Az alkalmazás <strong>100% lokálisan, az Ön számítógépén</strong> működik. Nincsenek központi szerverek, nincsen az Ön adatainak továbbítása harmadik félhez, és nincs telemetria vagy nyomon követés.</p>
+<p><strong>Alapelv:</strong> Az alkalmazás <strong>100% lokálisan, az Ön számítógépén</strong> működik. Nincsenek központi szerverek, nincs az Ön adatainak továbbítása harmadik félhez, és nincs telemetria vagy nyomon követés.</p>
 
 <h2>2. Adatkezelő és Jogalap</h2>
 <h3>2.1 Adatkezelő</h3>
@@ -53,33 +53,24 @@
 <h3>3.1 E-mail Fiók Hitelesítési Adatai</h3>
 <ul>
     <li><strong>Mit tárolunk:</strong> IMAP-kiszolgáló címe (pl. <code>imap.gmail.com</code>), e-mail cím, alkalmazásjelszó (vagy teljes jelszó, ha a felhasználó ezt választja)</li>
-    <li><strong>Hol tárolódik:</strong> Az alkalmazás telepítési könyvtára alatt (<code>AppData\Local\HirlevelKoveto\config.json</code>)</li>
-    <li><strong>Jellemzői:</strong> Helyi fájlban, <strong>nincsen titkosítva</strong> (FONTOS biztonsági nyilatkozat)</li>
+    <li><strong>Hol tárolódik:</strong> <code>%LOCALAPPDATA%\HirlevelKoveto\config.json</code> (felhasználói adatmappa — nem a kicsomagolt program mappája)</li>
+    <li><strong>Jellemzői:</strong> Helyi fájlban, <strong>nincs titkosítva</strong> (FONTOS biztonsági nyilatkozat)</li>
     <li><strong>Kezelés célja:</strong> IMAP-kiszolgálóhoz való kapcsolódás és e-mailek letöltése</li>
     <li><strong>Megőrzési időtartam:</strong> Az alkalmazás letöltéséig; az Ön által törölhető</li>
-    <li><strong>Érintett jogok:</strong> Hozzáférés, helyesbítés, törlés — az alkalmazásban az „Adatkezelés" menü alatt</li>
+    <li><strong>Érintett jogok:</strong> Hozzáférés, helyesbítés, törlés — <strong>Levelezés → Levelező fiókok…</strong> (fiók), főablak (levelek, források)</li>
 </ul>
 
 <div class="warning">
-    <strong>⚠️ Biztonsági figyelmeztetés:</strong> Az IMAP-jelszó az <code>config.json</code> fájlban nincsen titkosítva. Ha valaki hozzáféréshez jut az Ön számítógépéhez, az IMAP-jelszó kiolvasható. Javasolt: erős Windows-jelszó + BitLocker lemez-titkosítás.
+    <strong>⚠️ Biztonsági figyelmeztetés:</strong> A levelező jelszó (alkalmazásjelszó is) és az Outlook-bejelentkezés tokenjei a <code>config.json</code> fájlban <strong>nincsenek titkosítva</strong>. Ha valaki hozzáfér az Ön számítógépéhez, ezek kiolvashatók. Ahol a szolgáltató engedi (pl. Gmail), a teljes fiókjelszó helyett <strong>alkalmazásjelszót</strong> érdemes használni: korlátozott, bármikor visszavonható — ez biztonságosabb beállítás, de a fájlban így is olvasható formában marad. Továbbá javasolt: erős Windows-jelszó és BitLocker lemez-titkosítás.
 </div>
 
 <h3>3.2 E-mail Üzenetek (Levelek) és Metaadatai</h3>
 <ul>
     <li><strong>Mit tárolunk:</strong> Levélszöveg, feladó, tárgy, dátum, melléklet hivatkozások, olvasott/olvasatlan státusz</li>
     <li><strong>Hol tárolódik:</strong> Helyi SQLite adatbázis (<code>AppData\Local\HirlevelKoveto\data\hirlevelek.db</code>)</li>
-    <li><strong>Kezelés célja:</strong> Hírlevelek archiválása, kereshetősége, kategorizálása</li>
+    <li><strong>Kezelés célja:</strong> Hírlevelek archiválása, keresése és kategorizálása</li>
     <li><strong>Megőrzési időtartam:</strong> Az Ön által definiálva (amíg az alkalmazásban marad)</li>
     <li><strong>Érintett jogok:</strong> Törlés (egyedi levél vagy teljes forrás), export</li>
-</ul>
-
-<h3>3.3 Google Drive Biztonsági Másolat (Opcionális)</h3>
-<ul>
-    <li><strong>Mit tárolunk:</strong> Az adatbázis és a konfigurációs fájlok biztonsági másolatai, ha Ön ezt engedélyezi</li>
-    <li><strong>Hol tárolódik:</strong> Az Ön Google Drive-ján (az Ön Google-fiókjában)</li>
-    <li><strong>Jellemzői:</strong> Csak akkor kerül feltöltésre, ha Ön kifejezetten engedélyezi és konfigurálja</li>
-    <li><strong>Jogalap:</strong> Az Ön explicit beleegyezése (GDPR 6. cikk (1) bekezdés a) pont)</li>
-    <li><strong>Megjegyzés:</strong> Google Drive használata során a Google Adatkezelési Szabályzatára is szükséges figyelemmel lenni</li>
 </ul>
 
 <h2>4. Adatszolgáltatás és Továbbítás</h2>
@@ -87,7 +78,6 @@
 <p>Az alkalmazás <strong>nem továbbít személyes adatokat harmadik félhez</strong>, kivéve:</p>
 <ul>
     <li><strong>IMAP-kiszolgálók:</strong> Az Ön e-mail szolgáltatójához (pl. Gmail). Az alkalmazás az IMAP protokollon keresztül kommunikál ezekkel a szerverekkel, de az e-mailek a saját gépén maradnak.</li>
-    <li><strong>Google Drive:</strong> Ha Ön kifejezetten engedélyezi a biztonsági mentést. Ebben az esetben az adatok a Google szerverein tárolódnak a Google Adatkezelési Szabályzata szerint.</li>
 </ul>
 
 <h3>4.2 Fejlesztő Hozzáférése</h3>
@@ -97,12 +87,12 @@
 <p>Az Ön adatokhoz kapcsolódó jogai (GDPR VI. fejezet):</p>
 
 <ul>
-    <li><strong>Hozzáférés joga:</strong> Jogosult az Ön személyes adataihoz hozzáférni. Az alkalmazásban megtekintheti az összes tárolt e-mailt és forrást.</li>
-    <li><strong>Helyesbítés joga:</strong> Jogosult pontatlan adatokat helyesbíteni. Az alkalmazásban szerkeszthet forrás-állapotokat és címkéket.</li>
-    <li><strong>Törlés joga:</strong> Jogosult személyes adatait törölni: egyedi levél, teljes forrás az összes hozzá tartozó levéllel, vagy az IMAP hitelesítési adatok törlése.</li>
-    <li><strong>Az adatfeldolgozás korlátozása:</strong> Jogosult adatfeldolgozást korlátozni. Az alkalmazásban a szinkronizálást leállíthatja, vagy letilthatja a forrásokat.</li>
-    <li><strong>Adathordozhatóság:</strong> Jogosult adatait előnyösen használható formátumban megkapni. Az alkalmazásban az összes e-mail letöltésre és mentésre kerülhet az adatbázisból.</li>
-    <li><strong>Panasz benyújtása:</strong> Jogosult panaszt benyújtani a felelős adatvédelmi hatóságnál (Magyarországon: <a href="https://www.naih.hu/">NAIH</a>).</li>
+    <li><strong>Hozzáférés:</strong> Levelek és források a főablakban; fiók adatok: <strong>Levelezés → Levelező fiókok…</strong></li>
+    <li><strong>Helyesbítés:</strong> Forrás szerkesztése (✎), <strong>Címke</strong>, fiók mentése a Levelező fiókok ablakban</li>
+    <li><strong>Törlés:</strong> Levél (buborék), forrás + levelek (<strong>Törlés…</strong>), csak levelek (<strong>Helyi levelek törlése…</strong>), fiók (Levelező fiókok → Törlés)</li>
+    <li><strong>Korlátozás:</strong> Szinkron kikapcsolása (kilépés), forrás <strong>Elrejtés</strong>, ritkább <strong>Frissítési intervallum</strong></li>
+    <li><strong>Adathordozhatóság:</strong> Word / PDF export; teljes archívum: <strong>Fájl → Mentés…</strong> vagy <strong>Mentés másként…</strong> (zip)</li>
+    <li><strong>Panasz:</strong> <a href="https://www.naih.hu/">NAIH</a></li>
 </ul>
 
 <h2>6. Adatmegőrzés</h2>
@@ -112,17 +102,16 @@
 <p>Az alkalmazás <strong>nem használ</strong> automatikus döntéshozatalt vagy profilozást az Ön adatainak feldolgozásában.</p>
 
 <h2>8. Ezt a Tájékoztatót Érintő Módosítások</h2>
-<p>A fejlesztő jogosult ezt az adatkezelési tájékoztatót bármikor módosítani. Az alkalmazás frissítéseihez nyomon követheti a változásokat. <strong>Az alkalmazás használatának folytatása a módosítások elfogadásának tekintendő.</strong></p>
+<p>A fejlesztő jogosult ezt az adatkezelési tájékoztatót bármikor módosítani. Frissítés után az aktuális szöveg a programban elérhető: <strong>Súgó → Jogi Dokumentumok Központ… → Adatkezelés</strong>.</p>
 
 <h2>9. Kapcsolatfelvétel</h2>
 <p>Ha kérdése van az adatkezelésről vagy szeretné gyakorolni fenti jogait:</p>
 <ul>
-    <li><strong>GitHub Issues:</strong> Az alkalmazás Súgó menüjében válassza a "GitHub Issues (böngészőben)" lehetőséget</li>
+    <li><strong>Kérdés, hibajelzés:</strong> <strong>Súgó → Hibabejelentő…</strong> (GitHub Issues a böngészőben)</li>
     <li><strong>Adatvédelmi Hatóság:</strong> <a href="https://www.naih.hu/">Nemzeti Adatvédelmi és Információszabadság Hatóság (NAIH)</a></li>
 </ul>
 
 <div class="footer">
-    <p><strong>Elfogadás:</strong> Az alkalmazás használatával Ön elfogadja ezt az adatkezelési tájékoztatót.</p>
     <p><em>Készült: 2026. október | Hírlevél követő alkalmazás</em></p>
 </div>
 

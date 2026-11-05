@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html as html_lib
+import os
 import re
 import sys
 import threading
@@ -14,14 +15,7 @@ from typing import Any, Optional
 
 import customtkinter as ctk
 
-from app.backup import (
-    backup_due,
-    create_backup_zip,
-    default_backup_filename,
-    normalize_backup_interval,
-    restore_backup_zip,
-    run_scheduled_backup,
-)
+from app.backup import create_backup_zip, default_backup_filename, restore_backup_zip
 from app.ctk_menu import CTkMenuBar, set_menu_theme
 from app.db import (
     Message,
@@ -54,7 +48,6 @@ from app.db import (
 from app.export_docx import export_messages_to_docx
 from app.export_rich import export_message_to_docx, export_message_to_pdf
 from app.gmail_fetch import fetch_all_accounts, refresh_one_message_html, _is_stub_message
-from app.paths import CONFIG_PATH
 from app.startup import disable_autostart, enable_autostart, is_autostart_enabled
 from app.themes import (
     apply_ctk_theme,
@@ -65,18 +58,18 @@ from app.themes import (
 from app.tray import run_tray
 
 try:
-    from app.build_info import BUILD_STAMP
+    from app.build_info import BUILD_NUMBER, BUILD_STAMP, VERSION_LABEL
 except ImportError:
+    BUILD_NUMBER = 0
     BUILD_STAMP = "dev"
+    VERSION_LABEL = "dev"
 
 # Középső lista: egyszerre max ennyi buborék, utána „Több betöltése”
 PAGE_SIZE = 20
 PREVIEW_LINES = 6
 PREVIEW_CHARS = 320
 PREVIEW_LINE_MAX = 88
-LIST_FETCH_LIMIT = 200
-# Google Drive mentés a kódban megmarad; menü/súgóban rejtve
-SHOW_GDRIVE_UI = False
+LIST_FETCH_LIMIT = 800
 URL_RE = re.compile(
     r"(https?://[^\s<>\"'\]\)]+)|(www\.[^\s<>\"'\]\)]+)",
     re.IGNORECASE,
@@ -106,8 +99,9 @@ class App(ctk.CTk):
             pass
         if not self._start_in_tray:
             self.after(0, self._prepare_main_window)
-            self.after(50, lambda: apply_window_icon(self))
-            self.after(500, lambda: apply_window_icon(self))
+        # Tálca ikon (frameless előtt/után is) — tray indulásnál is kell hwnd-hez
+        self.after(50, lambda: apply_window_icon(self))
+        self.after(500, lambda: apply_window_icon(self))
 
         self._selected: Optional[Source] = None
         self._syncing = False
@@ -151,6 +145,9 @@ class App(ctk.CTk):
             appearance_fallback=str(cfg0.get("appearance_mode") or "Dark"),
         )
         self._palette = apply_ctk_theme(theme_id)
+        from app.ctk_menu import set_ui_appearance
+
+        set_ui_appearance(self._palette.appearance)
         set_menu_theme(menu_theme_from_palette(self._palette))
         self._theme_var = tk.StringVar(value=theme_id)
         # Régi menü / config kompatibilitás
@@ -158,23 +155,18 @@ class App(ctk.CTk):
         self._chrome_hidden = False
         self._win_maximized = False
         self._restore_geometry = self.geometry()
-        self._backup_auto_var = tk.BooleanVar(value=bool(cfg0.get("backup_auto")))
-        self._backup_freq_var = tk.StringVar(
-            value=normalize_backup_interval(cfg0.get("backup_interval"))
-        )
-        target0 = str(cfg0.get("backup_target") or "local").strip().lower()
-        if target0 not in ("local", "gdrive"):
-            target0 = "local"
-        self._backup_target_var = tk.StringVar(value=target0)
-        self._backup_job: Optional[str] = None
-        self._backup_running = False
 
         self._build()
         self._reload_sources()
         self._schedule_poll()
-        self._schedule_backup_check()
         self.bind("<Configure>", self._on_root_configure)
-        self.after(300, lambda: self._set_status(f"Build: {BUILD_STAMP}", force=True))
+        self.after(
+            300,
+            lambda: self._set_status(
+                f"Build {BUILD_NUMBER} · {VERSION_LABEL} ({BUILD_STAMP})",
+                force=True,
+            ),
+        )
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         # CTk címsáv után is maradjon a tálcára zárás
@@ -185,6 +177,7 @@ class App(ctk.CTk):
         self._startup_sync_job = self.after(2800, self._run_startup_sync)
         # Alvás / fedél fel → automatikus levélfrissítés (Windows WM_POWERBROADCAST)
         self.after(1500, self._bind_system_resume_watch)
+        self._important_notice_shown = False
 
     def _build(self) -> None:
         self.grid_columnconfigure(1, weight=1)
@@ -228,6 +221,7 @@ class App(ctk.CTk):
         self._themed_entries.append(self.search)
 
         self._chrome_buttons: list[ctk.CTkButton] = []
+        self._destructive_buttons: list[ctk.CTkButton] = []
         self.search_btn = ctk.CTkButton(
             top_bar, text="Keres", width=80, command=self._run_search
         )
@@ -277,7 +271,13 @@ class App(ctk.CTk):
         self._themed_checkboxes.append(self.search_scope_cb)
 
         # --- Bal: hírlevelek ---
-        left = ctk.CTkFrame(self, width=280, corner_radius=0, fg_color=self._palette.left_bg)
+        left = ctk.CTkFrame(
+            self,
+            width=280,
+            corner_radius=0,
+            fg_color=self._palette.left_bg,
+            border_width=1,
+        )
         left.grid(row=2, column=0, sticky="nsw")
         left.grid_propagate(False)
         self._left_pane = left
@@ -307,11 +307,11 @@ class App(ctk.CTk):
             left, text="+ Új hírlevél", height=36, command=self._add_newsletter
         )
         self._add_source_btn.pack(fill="x", padx=12, pady=(8, 4))
+        self._chrome_buttons.append(self._add_source_btn)
         self._hidden_sources_btn = ctk.CTkButton(
             left,
             text="Elrejtettek…",
             height=30,
-            fg_color=("gray80", "gray28"),
             command=self._manage_hidden_sources,
         )
         self._hidden_sources_btn.pack(fill="x", padx=12, pady=(0, 12))
@@ -361,9 +361,6 @@ class App(ctk.CTk):
             actions_top,
             text="Törlés…",
             width=90,
-            fg_color="#C45C5C",
-            hover_color="#A84848",
-            text_color="#FFFFFF",
             command=self._delete_selected_source,
         )
         self.delete_source_btn.pack(side="left", padx=(6, 0))
@@ -378,12 +375,10 @@ class App(ctk.CTk):
             actions_bottom,
             text="Helyi levelek törlése…",
             width=170,
-            fg_color="#8B3A3A",
-            hover_color="#6E2E2E",
-            text_color="#FFFFFF",
             command=self._delete_selected_source_messages,
         )
         self.delete_msgs_btn.pack(side="left", padx=(6, 0))
+        self._destructive_buttons.extend([self.delete_source_btn, self.delete_msgs_btn])
         self.export_btn = ctk.CTkButton(
             actions_bottom, text="Word lista", width=110, command=self._export
         )
@@ -438,9 +433,20 @@ class App(ctk.CTk):
         self.filter_btn.pack(side="left")
         self._chrome_buttons.append(self.filter_btn)
 
-        # Folyamatos görgetés a betöltött buborékokon; 20 után „Több betöltése”
-        self.msg_frame = ctk.CTkScrollableFrame(mid, fg_color=self._palette.mid_bg)
-        self.msg_frame.grid(row=2, column=0, sticky="nsew")
+        # Beágyazott levéllista-panel (surface + keret)
+        self._msg_list_shell = ctk.CTkFrame(
+            mid,
+            fg_color=self._palette.surface,
+            corner_radius=8,
+            border_width=1,
+        )
+        self._msg_list_shell.grid(row=2, column=0, sticky="nsew", padx=10, pady=(0, 8))
+        self._msg_list_shell.grid_columnconfigure(0, weight=1)
+        self._msg_list_shell.grid_rowconfigure(0, weight=1)
+        self.msg_frame = ctk.CTkScrollableFrame(
+            self._msg_list_shell, fg_color=self._palette.surface
+        )
+        self.msg_frame.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
         self._configure_msg_scroll(self.msg_frame)
 
         self.status = ctk.CTkLabel(
@@ -450,7 +456,10 @@ class App(ctk.CTk):
 
         # --- Jobb: HTML olvasó ---
         reader_wrap = ctk.CTkFrame(
-            self, corner_radius=0, fg_color=self._palette.left_bg
+            self,
+            corner_radius=0,
+            fg_color=self._palette.left_bg,
+            border_width=1,
         )
         reader_wrap.grid(row=2, column=2, sticky="nsew", padx=0, pady=0)
         reader_wrap.grid_columnconfigure(0, weight=1)
@@ -528,7 +537,7 @@ class App(ctk.CTk):
             ]
         )
         self.reader_host = ctk.CTkFrame(
-            reader_wrap, fg_color=self._palette.surface, corner_radius=12
+            reader_wrap, fg_color=self._palette.surface, corner_radius=8
         )
         self.reader_host.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
         self.reader_host.grid_columnconfigure(0, weight=1)
@@ -604,7 +613,7 @@ class App(ctk.CTk):
         for w in self.msg_frame.winfo_children():
             w.destroy()
         box = ctk.CTkFrame(
-            self.msg_frame, fg_color=self._palette.bubble, corner_radius=16
+            self.msg_frame, fg_color=self._palette.bubble, corner_radius=8
         )
         box.pack(fill="x", padx=16, pady=24)
         if kind == "welcome":
@@ -619,7 +628,7 @@ class App(ctk.CTk):
             body = "Kattints bal oldalon egy küldőre, vagy keress felül."
         elif kind == "no_mail":
             title = "Nincs megjeleníthető levél"
-            body = "Próbáld a „Most ellenőriz” gombot, vagy a teljes előzmény importot."
+            body = "Próbáld a „Most ellenőriz” gombot, vagy a Levelezés → Régebbi levelek betöltése menüt."
         else:
             title = "Nincs találat"
             body = "Próbálj másik keresőszót."
@@ -1079,7 +1088,7 @@ class App(ctk.CTk):
                             self.after(
                                 0,
                                 lambda: self._set_status(
-                                    "Nem sikerült a HTML — próbáld: Teljes előzmény import",
+                                    "Nem sikerült a HTML — próbáld: Régebbi levelek betöltése",
                                     force=True,
                                 )
                                 if token == self._reader_token
@@ -1276,6 +1285,62 @@ class App(ctk.CTk):
             return False
         return False
 
+    def _bind_hand_cursor_zone(
+        self,
+        root_widget: Any,
+        *parts: Any,
+        exclude: Any = None,
+    ) -> None:
+        """Hand2 kurzor — csak a főablakon (CTk widget cursor= nem → nincs sor-villogás)."""
+        bind_targets = (root_widget,) + parts
+        top = root_widget.winfo_toplevel()
+
+        def _in_zone(x_root: int, y_root: int) -> bool:
+            if exclude is not None and self._pointer_inside(exclude, x_root, y_root):
+                return False
+            if self._pointer_inside(root_widget, x_root, y_root):
+                return True
+            for p in parts:
+                if self._pointer_inside(p, x_root, y_root):
+                    return True
+            return False
+
+        def on_enter(_e: object = None) -> None:
+            depth = int(getattr(self, "_hand_cursor_depth", 0))
+            self._hand_cursor_depth = depth + 1
+            if depth > 0:
+                return
+            try:
+                top.configure(cursor="hand2")
+            except Exception:
+                pass
+
+        def on_leave(e: object = None) -> None:
+            try:
+                if e is not None and hasattr(e, "x_root"):
+                    x, y = int(e.x_root), int(e.y_root)  # type: ignore[attr-defined]
+                else:
+                    x, y = root_widget.winfo_pointerx(), root_widget.winfo_pointery()
+            except Exception:
+                return
+            if _in_zone(x, y):
+                return
+            depth = int(getattr(self, "_hand_cursor_depth", 0))
+            self._hand_cursor_depth = max(0, depth - 1)
+            if self._hand_cursor_depth > 0:
+                return
+            try:
+                top.configure(cursor="")
+            except Exception:
+                pass
+
+        for w in bind_targets:
+            try:
+                w.bind("<Enter>", on_enter, add="+")
+                w.bind("<Leave>", on_leave, add="+")
+            except Exception:
+                pass
+
     def _build_menubar(self) -> None:
         # Natív Windows menü helyett CTk sáv — követi a Light/Dark témát
         self.configure(menu="")
@@ -1285,12 +1350,17 @@ class App(ctk.CTk):
                 [
                     {
                         "kind": "command",
-                        "label": "Mentés biztonsági másolat…",
-                        "command": self._backup_export,
+                        "label": "Mentés…",
+                        "command": self._backup_save,
                     },
                     {
                         "kind": "command",
-                        "label": "Visszaállítás backupból…",
+                        "label": "Mentés másként…",
+                        "command": self._backup_save_as,
+                    },
+                    {
+                        "kind": "command",
+                        "label": "Backup visszaállítás…",
                         "command": self._backup_restore,
                     },
                     {"kind": "separator"},
@@ -1306,17 +1376,12 @@ class App(ctk.CTk):
                 "Levelezés",
                 [
                     {"kind": "command", "label": "Levelező fiókok…", "command": self._open_accounts},
-                    {
-                        "kind": "command",
-                        "label": "Szinkron napló megnyitása…",
-                        "command": self._open_sync_log,
-                    },
                     {"kind": "command", "label": "Új hírlevél felvétel", "command": self._add_newsletter},
                     {"kind": "separator"},
                     {"kind": "command", "label": "Most ellenőriz", "command": self._sync_async},
                     {
                         "kind": "command",
-                        "label": "Teljes előzmény import",
+                        "label": "Régebbi levelek betöltése…",
                         "command": self._full_import_async,
                     },
                     {"kind": "separator"},
@@ -1369,92 +1434,6 @@ class App(ctk.CTk):
                         "variable": self._autostart_var,
                         "command": self._apply_autostart,
                     },
-                    {"kind": "separator"},
-                    {
-                        "kind": "check",
-                        "label": "Automata biztonsági mentés",
-                        "variable": self._backup_auto_var,
-                        "command": self._apply_backup_auto,
-                    },
-                    *(
-                        [
-                            {
-                                "kind": "submenu",
-                                "label": "Mentés helye",
-                                "items": [
-                                    {
-                                        "kind": "radio",
-                                        "label": "Gépre (mappa)",
-                                        "variable": self._backup_target_var,
-                                        "value": "local",
-                                        "command": self._apply_backup_target,
-                                    },
-                                    {
-                                        "kind": "radio",
-                                        "label": "Google Drive",
-                                        "variable": self._backup_target_var,
-                                        "value": "gdrive",
-                                        "command": self._apply_backup_target,
-                                    },
-                                ],
-                            },
-                        ]
-                        if SHOW_GDRIVE_UI
-                        else []
-                    ),
-                    {
-                        "kind": "submenu",
-                        "label": "Mentés gyakorisága",
-                        "items": [
-                            {
-                                "kind": "radio",
-                                "label": "Napi",
-                                "variable": self._backup_freq_var,
-                                "value": "daily",
-                                "command": self._apply_backup_freq,
-                            },
-                            {
-                                "kind": "radio",
-                                "label": "Heti",
-                                "variable": self._backup_freq_var,
-                                "value": "weekly",
-                                "command": self._apply_backup_freq,
-                            },
-                            {
-                                "kind": "radio",
-                                "label": "Havi",
-                                "variable": self._backup_freq_var,
-                                "value": "monthly",
-                                "command": self._apply_backup_freq,
-                            },
-                        ],
-                    },
-                    {
-                        "kind": "command",
-                        "label": "Mentési mappa (gépre)…",
-                        "command": self._choose_backup_folder,
-                    },
-                    *(
-                        [
-                            {
-                                "kind": "command",
-                                "label": "Google Drive előkészítés…",
-                                "command": self._gdrive_setup_wizard,
-                            },
-                            {
-                                "kind": "command",
-                                "label": "Google Drive bejelentkezés…",
-                                "command": self._gdrive_login,
-                            },
-                            {
-                                "kind": "command",
-                                "label": "Google Drive kijelentkezés",
-                                "command": self._gdrive_logout,
-                            },
-                        ]
-                        if SHOW_GDRIVE_UI
-                        else []
-                    ),
                 ],
             ),
             (
@@ -1463,39 +1442,12 @@ class App(ctk.CTk):
                     {
                         "kind": "command",
                         "label": "Használati útmutató…",
-                        "command": lambda: self._show_help("sugo"),
-                    },
-                    {
-                        "kind": "command",
-                        "label": "Mentés és biztonság…",
-                        "command": lambda: self._show_help("mentes"),
-                    },
-                    *(
-                        [
-                            {
-                                "kind": "command",
-                                "label": "Google Drive mentés…",
-                                "command": lambda: self._show_help("gdrive"),
-                            },
-                        ]
-                        if SHOW_GDRIVE_UI
-                        else []
-                    ),
-                    {
-                        "kind": "command",
-                        "label": "Adatkezelés…",
-                        "command": lambda: self._show_help("adat"),
-                    },
-                    {"kind": "separator"},
-                    {
-                        "kind": "command",
-                        "label": "A Programról…",
-                        "command": self._show_about,
-                    },
-                    {
-                        "kind": "command",
-                        "label": "Használati Útmutató…",
                         "command": self._show_usage_guide,
+                    },
+                    {
+                        "kind": "command",
+                        "label": "Fontos tudnivalók…",
+                        "command": self._show_important_notice,
                     },
                     {
                         "kind": "command",
@@ -1504,8 +1456,13 @@ class App(ctk.CTk):
                     },
                     {
                         "kind": "command",
-                        "label": "GitHub Issues (böngészőben)…",
+                        "label": "Hibabejelentő…",
                         "command": self._open_github_issues,
+                    },
+                    {
+                        "kind": "command",
+                        "label": "A Programról…",
+                        "command": self._show_about,
                     },
                 ],
             ),
@@ -1528,14 +1485,12 @@ class App(ctk.CTk):
         titles = {
             "sugo": "Használati útmutató",
             "mentes": "Mentés és biztonság",
-            "gdrive": "Google Drive mentés",
             "adat": "Adatkezelés",
             "nevjegy": "Névjegy",
         }
         bodies = {
             "sugo": ht.SÚGÓ_ROVID,
             "mentes": ht.MENTES_BIZTONSAG,
-            "gdrive": ht.GOOGLE_DRIVE_BEJELENTKEZES,
             "adat": ht.ADATKEZELES,
             "nevjegy": ht.NEVJEGY,
         }
@@ -1568,6 +1523,30 @@ class App(ctk.CTk):
         from app.legal_center import show_legal_center
         show_legal_center(self)
 
+    def _show_important_notice(self) -> None:
+        from app.important_notice import show_important_notice
+
+        show_important_notice(
+            self,
+            on_open_legal=self._show_legal_center,
+            at_startup=False,
+        )
+
+    def _maybe_show_important_notice_at_startup(self) -> None:
+        if getattr(self, "_important_notice_shown", False):
+            return
+        from app.important_notice import should_show_at_startup, show_important_notice
+
+        if not should_show_at_startup():
+            self._important_notice_shown = True
+            return
+        self._important_notice_shown = True
+        show_important_notice(
+            self,
+            on_open_legal=self._show_legal_center,
+            at_startup=True,
+        )
+
     def _open_github_issues(self) -> None:
         """GitHub Issues megnyitása az alapértelmezett böngészőben."""
         webbrowser.open("https://github.com/Gergely-hub/hirlevel-archivalas/issues")
@@ -1579,391 +1558,144 @@ class App(ctk.CTk):
             return folder
         return str(Path.home() / "Documents")
 
-    def _apply_backup_target(self) -> None:
-        target = str(self._backup_target_var.get() or "local").strip().lower()
-        if target not in ("local", "gdrive"):
-            target = "local"
-            self._backup_target_var.set(target)
-        cfg = load_config()
-        cfg["backup_target"] = target
-        save_config(cfg)
-        if target == "gdrive":
-            from app.gdrive_backup import is_connected, status_text
-
-            if not is_connected():
-                self._set_status(
-                    f"Mentés: Google Drive — {status_text()}. Jelentkezz be a menüből.",
-                    force=True,
-                )
-            else:
-                self._set_status("Mentés helye: Google Drive", force=True)
-        else:
-            self._set_status("Mentés helye: gépre (mappa)", force=True)
-
-    def _gdrive_setup_wizard(self) -> None:
-        """Egyszeri előkészítés: Google azonosító JSON, utána saját fiókos belépés."""
-        import webbrowser
-        from app.window_util import center_window
-
-        from app import gdrive_backup as gd
-
-        win = ctk.CTkToplevel(self)
-        win.title("Google Drive előkészítés")
-        center_window(win, 620, 580)
-        win.transient(self)
-
-        ctk.CTkLabel(
-            win,
-            text="Google Drive mentés — egyszeri előkészítés",
-            font=self._title_font(16),
-            anchor="w",
-        ).pack(fill="x", padx=16, pady=(14, 6))
-
-        status = ctk.CTkLabel(
-            win,
-            text=gd.status_text(),
-            anchor="w",
-            text_color=("gray30", "gray70"),
-        )
-        status.pack(fill="x", padx=16, pady=(0, 8))
-
-        info = ctk.CTkTextbox(win, wrap="word", height=220, font=self._body_font(13))
-        info.pack(fill="both", expand=True, padx=16, pady=4)
-        info.insert(
-            "1.0",
-            "FONTOS: az 1–4. lépéshez VÁLASSZ KI EGY Google-fiókot, és maradj azon.\n"
-            "Ne váltogass. (Tipikus: InPrivate / privát ablak, csak azzal a fiókkal.)\n"
-            "A gombok fiókválasztót nyitnak — ugyanazt a fiókot kattintsd mindig.\n\n"
-            "Ez egyszer kell a programhoz. Utána a mentéshez saját fiókkal belépsz.\n\n"
-            "1. Projekt — név pl. HirlevelKoveto → Create.\n"
-            "2. Drive API — Enable / Engedélyezés.\n"
-            "3. Hozzájárulás — External, app: Hírlevél követő.\n"
-            "   Tesztfelhasználó: az a Gmail, amivel majd menteni akarsz.\n"
-            "4. Azonosító — OAuth client ID → Desktop app → Download JSON.\n"
-            "5. Itt: „Letöltött fájl kiválasztása…”\n"
-            "6. „Bejelentkezés…” — azzal a Gmaillel, amit tesztfelhasználónak adtál.\n",
-        )
-        info.configure(state="disabled")
-
-        def refresh_status() -> None:
-            status.configure(text=gd.status_text())
-
-        def open_url(url: str) -> None:
-            webbrowser.open(url)
-
-        btns = ctk.CTkFrame(win, fg_color="transparent")
-        btns.pack(fill="x", padx=16, pady=6)
-        ctk.CTkButton(
-            btns, text="1. Projekt", width=100, command=lambda: open_url(gd.URL_PROJECT)
-        ).pack(side="left", padx=(0, 6))
-        ctk.CTkButton(
-            btns, text="2. Drive API", width=100, command=lambda: open_url(gd.URL_DRIVE_API)
-        ).pack(side="left", padx=(0, 6))
-        ctk.CTkButton(
-            btns, text="3. Hozzájárulás", width=110, command=lambda: open_url(gd.URL_CONSENT)
-        ).pack(side="left", padx=(0, 6))
-        ctk.CTkButton(
-            btns, text="4. Azonosító", width=100, command=lambda: open_url(gd.URL_CREDENTIALS)
-        ).pack(side="left")
-
-        def pick_json() -> None:
-            path = filedialog.askopenfilename(
-                title="Google-tól letöltött JSON fájl",
-                filetypes=[("JSON", "*.json"), ("Minden", "*.*")],
-                initialdir=str(Path.home() / "Downloads"),
-            )
-            if not path:
-                return
-            try:
-                gd.install_credentials_from_file(path)
-                refresh_status()
-                messagebox.showinfo(
-                    "Google Drive",
-                    "Előkészítés kész.\n\nMost: „Bejelentkezés…” — saját Google-fiókkal.",
-                )
-            except Exception as exc:
-                messagebox.showerror("Google Drive", str(exc))
-
-        def do_login() -> None:
-            win.destroy()
-            self._gdrive_login()
-
-        row2 = ctk.CTkFrame(win, fg_color="transparent")
-        row2.pack(fill="x", padx=16, pady=(4, 14))
-        ctk.CTkButton(
-            row2, text="5. Letöltött fájl kiválasztása…", command=pick_json
-        ).pack(side="left", padx=(0, 8))
-        ctk.CTkButton(row2, text="6. Bejelentkezés…", command=do_login).pack(
-            side="left", padx=(0, 8)
-        )
-        ctk.CTkButton(row2, text="Bezárás", width=90, command=win.destroy).pack(side="right")
-        win.after(50, win.lift)
-        refresh_status()
-
-    def _gdrive_login(self) -> None:
-        from app import gdrive_backup as gd
-
-        if not gd.credentials_available():
-            if messagebox.askyesno(
-                "Google Drive",
-                "A Drive még nincs előkészítve.\n\n"
-                "Megnyitod az előkészítő lépéseket?\n"
-                "(Egyszer kell; utána saját fiókkal lehet belépni.)",
-            ):
-                self._gdrive_setup_wizard()
-            return
-
-        def work() -> None:
-            try:
-                msg = gd.connect_interactive()
-                cfg = load_config()
-                cfg["backup_target"] = "gdrive"
-                save_config(cfg)
-                self.after(0, lambda: self._backup_target_var.set("gdrive"))
-                self.after(0, lambda: self._set_status(msg, force=True))
-                self.after(
-                    0,
-                    lambda: messagebox.showinfo("Google Drive", msg),
-                )
-            except Exception as exc:
-                self.after(0, lambda: messagebox.showerror("Google Drive", str(exc)))
-
-        self._set_status("Google Drive bejelentkezés (böngésző)…", force=True)
-        threading.Thread(target=work, daemon=True).start()
-
-    def _gdrive_logout(self) -> None:
+    def _with_dialog_on_top(self, fn: Any) -> Any:
+        """Fájlválasztó ne a frameless ablak mögé kerüljön."""
         try:
-            from app.gdrive_backup import disconnect
+            self.attributes("-topmost", True)
+            self.update_idletasks()
+        except Exception:
+            pass
+        try:
+            return fn()
+        finally:
+            try:
+                self.attributes("-topmost", False)
+            except Exception:
+                pass
 
-            disconnect()
-            self._set_status("Google Drive: kijelentkezve.", force=True)
-        except Exception as exc:
-            messagebox.showerror("Google Drive", str(exc))
+    def _backup_save(self) -> None:
+        """Ismert mappa + új időbélyeges zip — fájlablak nélkül."""
+        dest = Path(self._backup_initial_dir()) / default_backup_filename()
+        self._start_backup_zip(dest)
 
-    def _backup_export(self) -> None:
-        cfg = load_config()
-        target = str(
-            cfg.get("backup_target") or self._backup_target_var.get() or "local"
-        ).strip().lower()
-
-        if target == "gdrive":
-            def work_gdrive() -> None:
-                import tempfile
-
-                try:
-                    from app.gdrive_backup import upload_backup_zip
-
-                    with tempfile.TemporaryDirectory(prefix="hirlevel_bak_") as td:
-                        path = Path(td) / default_backup_filename()
-                        out = create_backup_zip(path)
-                        upload_backup_zip(out, keep=int(cfg.get("backup_keep") or 8))
-                    cfg2 = load_config()
-                    cfg2["backup_last_at"] = datetime.now().isoformat(timespec="seconds")
-                    cfg2["backup_target"] = "gdrive"
-                    save_config(cfg2)
-                    self.after(
-                        0,
-                        lambda: self._set_status(
-                            "Backup a Google Drive-on (HirlevelKoveto-backup).",
-                            force=True,
-                        ),
-                    )
-                except Exception as exc:
-                    self.after(
-                        0,
-                        lambda: (
-                            self._set_status(f"Backup hiba: {exc}", force=True),
-                            messagebox.showerror("Mentés", str(exc)),
-                        ),
-                    )
-
-            self._set_status("Google Drive mentés…", force=True)
-            threading.Thread(target=work_gdrive, daemon=True).start()
-            return
-
-        path = filedialog.asksaveasfilename(
-            title="Biztonsági másolat mentése a gépre",
-            defaultextension=".zip",
-            initialdir=self._backup_initial_dir(),
-            initialfile=default_backup_filename(),
-            filetypes=[("Backup ZIP", "*.zip")],
+    def _backup_save_as(self) -> None:
+        path = self._with_dialog_on_top(
+            lambda: filedialog.asksaveasfilename(
+                parent=self,
+                title="Biztonsági másolat — mentés másként",
+                defaultextension=".zip",
+                initialdir=self._backup_initial_dir(),
+                initialfile=default_backup_filename(),
+                filetypes=[("Backup ZIP", "*.zip")],
+            )
         )
         if not path:
             return
+        self._start_backup_zip(Path(path))
 
+    def _start_backup_zip(self, dest: Path) -> None:
         def work() -> None:
             try:
-                out = create_backup_zip(path)
+                out = create_backup_zip(dest)
                 cfg2 = load_config()
-                cfg2["backup_folder"] = str(Path(out).parent)
+                cfg2["backup_folder"] = str(out.parent)
                 cfg2["backup_last_at"] = datetime.now().isoformat(timespec="seconds")
                 cfg2["backup_target"] = "local"
                 save_config(cfg2)
-                self.after(
-                    0,
-                    lambda: self._set_status(f"Backup kész: {out}", force=True),
-                )
+                self.after(0, lambda p=out: self._backup_finished_ok(p))
             except Exception as exc:
                 self.after(
                     0,
-                    lambda: messagebox.showerror("Mentés", f"Nem sikerült: {exc}"),
+                    lambda e=exc: messagebox.showerror(
+                        "Mentés",
+                        f"Nem sikerült a biztonsági mentés:\n{e}",
+                        parent=self,
+                    ),
                 )
 
-        self._set_status("Backup készítése…", force=True)
+        self._set_status("Biztonsági mentés folyamatban…", force=True)
         threading.Thread(target=work, daemon=True).start()
 
+    def _backup_finished_ok(self, out: Path) -> None:
+        self._set_status(f"Mentés kész: {out}", force=True)
+        try:
+            size_mb = out.stat().st_size / (1024 * 1024)
+            size_line = f"Méret: {size_mb:.1f} MB\n\n"
+        except Exception:
+            size_line = ""
+        messagebox.showinfo(
+            "Mentés kész",
+            "A biztonsági másolat elkészült.\n\n"
+            f"{size_line}"
+            f"{out}",
+            parent=self,
+        )
+        if messagebox.askyesno(
+            "Mappa megnyitása",
+            "Megnyitod a mentés mappáját a Fájlkezelőben?",
+            parent=self,
+        ):
+            try:
+                os.startfile(out.parent)  # type: ignore[attr-defined]
+            except Exception:
+                pass
+
     def _backup_restore(self) -> None:
-        path = filedialog.askopenfilename(
-            title="Backup visszaállítása",
-            initialdir=self._backup_initial_dir(),
-            filetypes=[("Backup ZIP", "*.zip"), ("Minden", "*.*")],
+        path = self._with_dialog_on_top(
+            lambda: filedialog.askopenfilename(
+                parent=self,
+                title="Backup visszaállítás — zip kiválasztása",
+                initialdir=self._backup_initial_dir(),
+                filetypes=[("Backup ZIP", "*.zip"), ("Minden", "*.*")],
+            )
         )
         if not path:
             return
         ok = messagebox.askyesno(
             "Visszaállítás",
             "A jelenlegi archívum és beállítások felülíródnak "
-            "(a program előtte biztonsági másolatot készít a régiről).\n\n"
+            "(a régi fájlok .pre-restore időbélyeggel átnevezve maradnak).\n\n"
             "A mentési fájl tartalmazhatja a levelező adataidat is.\n\n"
             "Folytatod?",
         )
         if not ok:
             return
-        try:
-            restore_backup_zip(path)
-            init_db()
-            self._reload_sources()
-            self._clear_msg_frame()
-            self._show_list_empty_state("welcome")
-            self._show_reader_placeholder()
-            self._set_status(f"Visszaállítva: {path}", force=True)
-            messagebox.showinfo(
-                "Visszaállítás",
-                "Kész. Ha a fiókbeállítások is változtak, indítsd újra az appot.",
-            )
-        except Exception as exc:
-            messagebox.showerror("Visszaállítás", f"Nem sikerült: {exc}")
 
-    def _choose_backup_folder(self) -> None:
-        folder = filedialog.askdirectory(
-            title="Automata mentés mappája a gépen",
-            initialdir=self._backup_initial_dir(),
-        )
-        if not folder:
-            return
-        cfg = load_config()
-        cfg["backup_folder"] = folder
-        cfg["backup_target"] = "local"
-        save_config(cfg)
-        self._backup_target_var.set("local")
-        self._set_status(f"Mentési mappa: {folder}", force=True)
-        if self._backup_auto_var.get():
-            self.after(500, self._maybe_auto_backup)
+        zip_path = path
 
-    def _apply_backup_auto(self) -> None:
-        enabled = bool(self._backup_auto_var.get())
-        cfg = load_config()
-        target = str(
-            self._backup_target_var.get() or cfg.get("backup_target") or "local"
-        ).strip().lower()
-        if enabled and target != "gdrive":
-            folder = str(cfg.get("backup_folder") or "").strip()
-            if not folder or not Path(folder).is_dir():
-                chosen = filedialog.askdirectory(
-                    title="Válassz mentési mappát az automata backuphoz",
-                    initialdir=self._backup_initial_dir(),
-                )
-                if not chosen:
-                    self._backup_auto_var.set(False)
-                    return
-                cfg["backup_folder"] = chosen
-        if enabled and target == "gdrive":
-            from app.gdrive_backup import is_connected
-
-            if not is_connected():
-                if SHOW_GDRIVE_UI:
-                    messagebox.showinfo(
-                        "Automata mentés",
-                        "Google Drive célhoz előbb jelentkezz be:\n"
-                        "Beállítások → Google Drive bejelentkezés…",
-                    )
-                else:
-                    messagebox.showinfo(
-                        "Automata mentés",
-                        "A Google Drive mentés nincs beállítva.\n"
-                        "Válassz mentési mappát: Beállítások → Mentési mappa (gépre)…",
-                    )
-                self._backup_auto_var.set(False)
-                return
-        cfg["backup_auto"] = enabled
-        cfg["backup_target"] = target
-        cfg["backup_interval"] = normalize_backup_interval(self._backup_freq_var.get())
-        save_config(cfg)
-        if enabled:
-            where = "Google Drive" if target == "gdrive" else str(cfg.get("backup_folder"))
-            self._set_status(
-                f"Automata mentés be: {self._backup_freq_label()} → {where}",
-                force=True,
-            )
-            self.after(800, self._maybe_auto_backup)
-        else:
-            self._set_status("Automata mentés kikapcsolva.", force=True)
-
-    def _apply_backup_freq(self) -> None:
-        freq = normalize_backup_interval(self._backup_freq_var.get())
-        self._backup_freq_var.set(freq)
-        cfg = load_config()
-        cfg["backup_interval"] = freq
-        save_config(cfg)
-        self._set_status(f"Mentés gyakorisága: {self._backup_freq_label()}", force=True)
-
-    def _backup_freq_label(self) -> str:
-        return {"daily": "napi", "weekly": "heti", "monthly": "havi"}.get(
-            normalize_backup_interval(self._backup_freq_var.get()), "heti"
-        )
-
-    def _schedule_backup_check(self) -> None:
-        if self._backup_job:
+        def finish_restore() -> None:
             try:
-                self.after_cancel(self._backup_job)
-            except Exception:
-                pass
-            self._backup_job = None
-
-        def tick() -> None:
-            self._maybe_auto_backup()
-            # Óránként elég ellenőrizni az esedékességet
-            self._backup_job = self.after(60 * 60 * 1000, tick)
-
-        # Indítás után rövid késleltetés
-        self._backup_job = self.after(12_000, tick)
-
-    def _maybe_auto_backup(self) -> None:
-        if self._backup_running or self._syncing:
-            return
-        cfg = load_config()
-        if not backup_due(cfg):
-            return
-        self._backup_running = True
-        self._set_status("Automata biztonsági mentés…", force=True)
-
-        def work() -> None:
-            try:
-                out = run_scheduled_backup(cfg)
-                save_config(cfg)
-                self.after(
-                    0,
-                    lambda: self._set_status(f"Automata backup kész: {out}", force=True),
+                self._syncing = True
+                restore_backup_zip(zip_path)
+                init_db()
+                self._reload_sources()
+                self._clear_msg_frame()
+                self._show_list_empty_state("welcome")
+                self._show_reader_placeholder()
+                self._set_status(f"Visszaállítva: {zip_path}", force=True)
+                messagebox.showinfo(
+                    "Visszaállítás",
+                    "Kész. Ha a fiókbeállítások is változtak, indítsd újra az appot.",
                 )
             except Exception as exc:
-                self.after(
-                    0,
-                    lambda: self._set_status(f"Automata backup hiba: {exc}", force=True),
-                )
+                messagebox.showerror("Visszaállítás", f"Nem sikerült: {exc}")
             finally:
-                self.after(0, lambda: setattr(self, "_backup_running", False))
+                self._syncing = False
 
-        threading.Thread(target=work, daemon=True).start()
+        def wait_then_restore() -> None:
+            if self._syncing:
+                self.after(250, wait_then_restore)
+                return
+            finish_restore()
+
+        if self._syncing:
+            messagebox.showinfo(
+                "Visszaállítás",
+                "Szinkron fut — megvárjuk, aztán visszaállítunk.",
+            )
+            wait_then_restore()
+        else:
+            finish_restore()
 
     def _apply_interval(self) -> None:
         minutes = int(self._interval_var.get())
@@ -1979,6 +1711,47 @@ class App(ctk.CTk):
         self._schedule_poll()
         self._set_status(f"Frissítés: {minutes} percenként", force=True)
 
+    def _button_depth(self, btn: ctk.CTkButton, *, fg: str, hover: str, text: str) -> None:
+        """Enyhe „kiemelés”: keret + lekerekítés (téma színekkel)."""
+        from app.themes import style_button_depth
+
+        pal = self._palette
+        style_button_depth(
+            btn,
+            fg=fg,
+            hover=hover,
+            text=text,
+            border_color=self._pal_pick(pal.accent_hover),
+        )
+
+    def _destructive_button_colors(self) -> tuple[str, str, str]:
+        """Törlés gombok — sötétebb téma árnyalat (fix bordó helyett)."""
+        pal = self._palette
+        return (
+            self._pal_pick(pal.primary_hover),
+            self._pal_pick(pal.accent_hover),
+            self._pal_pick(pal.btn_text),
+        )
+
+    def _style_source_tool_button(self, btn: ctk.CTkButton) -> None:
+        """Bal lista: másodlagos, lapos ikon gombok (ne primary „pötty”)."""
+        from app.themes import style_button_depth
+
+        pal = self._palette
+        style_button_depth(
+            btn,
+            fg=self._pal_pick(pal.source_row),
+            hover=self._pal_pick(pal.source_hover),
+            text=self._pal_pick(pal.muted),
+            border_color=self._pal_pick(pal.muted),
+            corner_radius=5,
+            border_width=1,
+        )
+        try:
+            btn.configure(width=28, height=24, font=self._body_font(11))
+        except Exception:
+            pass
+
     def _style_chrome_buttons(self) -> None:
         """Fejléc / olvasó gombok a paletta primary színére (ne ragadjon be a peónia)."""
         pal = self._palette
@@ -1986,25 +1759,21 @@ class App(ctk.CTk):
         hover = self._pal_pick(pal.primary_hover)
         txt = self._pal_pick(pal.btn_text)
         for btn in getattr(self, "_chrome_buttons", []):
+            self._button_depth(btn, fg=fg, hover=hover, text=txt)
+        d_fg, d_hover, d_txt = self._destructive_button_colors()
+        for btn in getattr(self, "_destructive_buttons", []):
+            self._button_depth(btn, fg=d_fg, hover=d_hover, text=d_txt)
+        hidden = getattr(self, "_hidden_sources_btn", None)
+        if hidden is not None:
             try:
-                btn.configure(fg_color=fg, hover_color=hover, text_color=txt)
-            except Exception:
-                pass
-        for btn in (
-            getattr(self, "_add_source_btn", None),
-            getattr(self, "_hidden_sources_btn", None),
-        ):
-            if btn is None:
-                continue
-            try:
-                if btn is self._hidden_sources_btn:
-                    btn.configure(
-                        fg_color=self._pal_pick(pal.source_row),
-                        hover_color=self._pal_pick(pal.source_hover),
-                        text_color=self._pal_pick(pal.text),
-                    )
-                else:
-                    btn.configure(fg_color=fg, hover_color=hover, text_color=txt)
+                hidden.configure(
+                    fg_color=self._pal_pick(pal.source_row),
+                    hover_color=self._pal_pick(pal.source_hover),
+                    text_color=self._pal_pick(pal.text),
+                    border_width=1,
+                    border_color=self._pal_pick(pal.muted),
+                    corner_radius=7,
+                )
             except Exception:
                 pass
 
@@ -2071,12 +1840,14 @@ class App(ctk.CTk):
             self.configure(fg_color=self._pal_pick(pal.window_bg))
         except Exception:
             pass
+        pane_border = self._pal_pick(pal.muted)
         for attr, color in (
             ("_top_bar", pal.left_bg),
             ("_left_pane", pal.left_bg),
             ("_mid_pane", pal.mid_bg),
             ("_reader_pane", pal.left_bg),
-            ("msg_frame", pal.mid_bg),
+            ("_msg_list_shell", pal.surface),
+            ("msg_frame", pal.surface),
             ("reader_host", pal.surface),
             ("source_list", pal.left_bg),
             ("status", None),
@@ -2098,6 +1869,14 @@ class App(ctk.CTk):
                     w.configure(fg_color=self._pal_pick(color))
             except Exception:
                 pass
+        for attr in ("_left_pane", "_reader_pane", "_msg_list_shell"):
+            w = getattr(self, attr, None)
+            if w is None:
+                continue
+            try:
+                w.configure(border_color=pane_border)
+            except Exception:
+                pass
         self._style_chrome_buttons()
         self._style_themed_controls()
         mt = menu_theme_from_palette(pal)
@@ -2108,8 +1887,9 @@ class App(ctk.CTk):
                 bar.apply_theme(mt)
             except Exception:
                 pass
-        self._tint_scrollable(getattr(self, "msg_frame", None), pal.mid_bg)
+        self._tint_scrollable(getattr(self, "msg_frame", None), pal.surface)
         self._tint_scrollable(getattr(self, "source_list", None), pal.left_bg)
+        self._recolor_static_labels_for_theme()
 
     def _tint_scrollable(self, frame: Any, color: tuple[str, str]) -> None:
         if frame is None:
@@ -2132,24 +1912,32 @@ class App(ctk.CTk):
 
     def _apply_theme(self) -> None:
         tid = resolve_theme_id(str(self._theme_var.get()))
+        if tid == getattr(self._palette, "id", None):
+            return
         self._theme_var.set(tid)
-        self._palette = apply_ctk_theme(tid)
+        # Ne hívd a CTk set_appearance_mode / load_theme — az egész fát újrarajzolja.
+        self._palette = apply_ctk_theme(tid, refresh_globals=False)
         self._appearance_var.set(self._palette.appearance)
+        from app.ctk_menu import set_ui_appearance
+
+        set_ui_appearance(self._palette.appearance)
         cfg = load_config()
         cfg["ui_theme"] = tid
         cfg["appearance_mode"] = self._palette.appearance
         save_config(cfg)
+        job = getattr(self, "_theme_recolor_job", None)
+        if job is not None:
+            try:
+                self.after_cancel(job)
+            except Exception:
+                pass
         self._apply_chrome_from_palette()
-        # Ne destroy/rebuild — csak színek a meglévő widgeteken.
-        if self._source_buttons:
-            self._refresh_source_badges()
-        else:
-            self._reload_sources(reset_scroll=False)
-        self._recolor_message_list_inplace()
+        self._recolor_sources_for_theme()
+        self._recolor_message_list_chrome()
+        self._schedule_theme_bubble_recolor()
+        if self._placeholder_shown and self._selected_msg_id is None and self._html_view:
+            self.after(200, self._deferred_reader_placeholder_theme)
         self._set_status(f"Téma: {self._palette.label}", force=True)
-        # Levél HTML papírszíne fix — ne töltsük újra. Csak üres olvasó követi a témát.
-        if self._selected_msg_id is None:
-            self._show_reader_placeholder()
 
     def _apply_appearance(self) -> None:
         """Régi hívások → új téma API."""
@@ -2167,34 +1955,11 @@ class App(ctk.CTk):
             self._set_status("Automatikus indítás kikapcsolva.", force=True)
         self._autostart_var.set(is_autostart_enabled())
 
-    def _open_sync_log(self) -> None:
-        import os
-        import subprocess
-        import sys
-
-        from app import sync_debug
-        from app.paths import ensure_data_dir
-
-        ensure_data_dir()
-        path = sync_debug.LOG_PATH
-        if not path.exists():
-            path.write_text(
-                "Még nincs szinkron napló. Futtass Most ellenőriz vagy 🔄 gombot.\n",
-                encoding="utf-8",
-            )
-        try:
-            if sys.platform == "win32":
-                os.startfile(str(path))  # noqa: S606
-            else:
-                subprocess.run(["xdg-open", str(path)], check=False)
-        except OSError as exc:
-            self._set_status(f"Napló: {path} ({exc})", force=True)
-
     def _open_accounts(self) -> None:
         from app.accounts_ui import AccountsWindow
 
         win = AccountsWindow(
-            self, on_saved=lambda: self._set_status(f"Fiókok mentve → {CONFIG_PATH}", force=True)
+            self, on_saved=lambda: self._set_status("Fiókok mentve.", force=True)
         )
         win.after(50, win.lift)
 
@@ -2368,7 +2133,7 @@ class App(ctk.CTk):
             ctk.CTkLabel(
                 self.source_list,
                 text="Még nincs hírlevél.\nAdd hozzá a „+ Új hírlevél” gombbal.",
-                text_color=("gray40", "gray65"),
+                text_color=self._pal_pick(self._palette.muted),
                 justify="left",
                 anchor="w",
             ).pack(anchor="w", padx=8, pady=12)
@@ -2380,9 +2145,8 @@ class App(ctk.CTk):
         selected_id = self._selected.id if self._selected else None
         last_tag: object = object()
         pal = self._palette
-        muted = pal.muted
-        uj_col = pal.accent
-        hover = pal.source_hover
+        muted = self._pal_pick(pal.muted)
+        uj_col = self._pal_pick(pal.accent)
         try:
             wrap = max(180, min(self.source_list.winfo_width() - 36, 260))
         except Exception:
@@ -2404,17 +2168,18 @@ class App(ctk.CTk):
             n = counts.get(src.id, 0)
             u = unread.get(src.id, 0)
             active = selected_id == src.id
-            bg = pal.source_active if active else pal.source_row
+            bg = self._pal_pick(pal.source_active if active else pal.source_row)
 
             row = ctk.CTkFrame(
                 self.source_list,
                 fg_color=bg,
-                corner_radius=12,
+                corner_radius=5,
+                border_width=0,
             )
             row._source_id = int(src.id)  # type: ignore[attr-defined]
-            row.pack(fill="x", pady=3, padx=4)
+            row.pack(fill="x", pady=1, padx=2)
             inner = ctk.CTkFrame(row, fg_color="transparent")
-            inner.pack(fill="both", expand=True, padx=12, pady=8)
+            inner.pack(fill="both", expand=True, padx=10, pady=6)
 
             # Név + Szerkesztés + Frissítés gombok egy sorban
             name_row = ctk.CTkFrame(inner, fg_color="transparent")
@@ -2425,7 +2190,7 @@ class App(ctk.CTk):
                 name_row,
                 text=src.name,
                 font=self._body_font(13),
-                text_color=pal.text,
+                text_color=self._pal_pick(pal.text),
                 anchor="w",
                 justify="left",
                 wraplength=wrap,
@@ -2445,18 +2210,10 @@ class App(ctk.CTk):
                 command=on_edit_source,
             )
             edit_btn.grid(row=0, column=1, sticky="e", padx=(4, 4))
+            self._style_source_tool_button(edit_btn)
             
             def on_sync_source(_e: object = None, sid: int = src.id) -> None:
-                """Per-forrás szinkronizálás."""
-                from app.gmail_fetch import fetch_one_source
-                self._set_status(f"Szinkronizálás: {src.name} …", force=True)
-                try:
-                    n = fetch_one_source(sid, progress=self._set_status)
-                    self._set_status(f"{src.name}: {n} új levél", force=True)
-                    # Csak a számlálókat frissítjük, nem rajzoljuk újra az UI-t
-                    self._refresh_source_badges()
-                except Exception as exc:
-                    self._set_status(f"Hiba: {exc}", force=True)
+                self._run_source_sync(int(sid))
             
             sync_btn = ctk.CTkButton(
                 name_row,
@@ -2467,6 +2224,7 @@ class App(ctk.CTk):
                 command=on_sync_source,
             )
             sync_btn.grid(row=0, column=2, sticky="e")
+            self._style_source_tool_button(sync_btn)
 
             if u:
                 stats = f"{n} levél · {u} új"
@@ -2487,34 +2245,9 @@ class App(ctk.CTk):
             def on_click(_e: object = None, s: Source = src) -> None:
                 self._select_source(s)
 
-            def on_enter(_e: object = None, r: ctk.CTkFrame = row, sid: int = src.id) -> None:
-                if self._selected and self._selected.id == sid:
-                    return
-                try:
-                    r.configure(fg_color=hover)
-                except Exception:
-                    pass
-
-            def on_leave(e: object = None, r: ctk.CTkFrame = row, sid: int = src.id) -> None:
-                try:
-                    x = int(getattr(e, "x_root", 0))
-                    y = int(getattr(e, "y_root", 0))
-                    if self._pointer_inside(r, x, y):
-                        return
-                except Exception:
-                    pass
-                active_now = bool(self._selected and self._selected.id == sid)
-                try:
-                    r.configure(
-                        fg_color=pal.source_active if active_now else pal.source_row
-                    )
-                except Exception:
-                    pass
-
             for w in (row, inner, name_lbl, stat_lbl):
                 w.bind("<Button-1>", on_click, add="+")
-            row.bind("<Enter>", on_enter, add="+")
-            row.bind("<Leave>", on_leave, add="+")
+            self._bind_hand_cursor_zone(row)
 
             self._source_buttons[src.id] = row
             self._source_name_labels[src.id] = name_lbl
@@ -2529,6 +2262,131 @@ class App(ctk.CTk):
             except Exception:
                 pass
 
+    def _deferred_reader_placeholder_theme(self) -> None:
+        if self._html_view is None or self._selected_msg_id is not None:
+            return
+        if not self._placeholder_shown:
+            return
+        html = self._reader_placeholder_html()
+        self._last_reader_html = html
+        try:
+            self._html_view.load_html(html)
+        except Exception:
+            pass
+
+    def _schedule_theme_bubble_recolor(self) -> None:
+        job = getattr(self, "_theme_recolor_job", None)
+        if job is not None:
+            try:
+                self.after_cancel(job)
+            except Exception:
+                pass
+        self._theme_bubble_token = int(getattr(self, "_theme_bubble_token", 0)) + 1
+        token = self._theme_bubble_token
+        self._theme_bubble_index = 0
+        self._theme_recolor_job = self.after_idle(
+            lambda t=token: self._theme_bubble_chunk(t)
+        )
+
+    def _theme_bubble_chunk(self, token: int) -> None:
+        if token != int(getattr(self, "_theme_bubble_token", 0)):
+            return
+        batch = 28
+        start = int(getattr(self, "_theme_bubble_index", 0))
+        try:
+            msg_widgets = [
+                w
+                for w in self.msg_frame.winfo_children()
+                if getattr(w, "_msg_id", None) is not None
+            ]
+        except Exception:
+            self._theme_recolor_job = None
+            return
+        end = min(start + batch, len(msg_widgets))
+        accent = self._palette.accent
+        text_col = self._palette.text
+        muted = self._palette.muted
+        for w in msg_widgets[start:end]:
+            mid = getattr(w, "_msg_id", None)
+            if mid is None:
+                continue
+            msg = next(
+                (m for m in self._messages_cache if int(m.id) == int(mid)),
+                None,
+            )
+            if msg is None:
+                continue
+            selected = self._selected_msg_id == int(mid)
+            unread = int(getattr(msg, "is_read", 1) or 0) == 0
+            self._apply_message_card_style(w, unread=unread, selected=selected)
+            self._recolor_bubble_children(
+                w,
+                unread=unread,
+                selected=selected,
+                text_col=text_col,
+                muted=muted,
+                accent=accent,
+                starred=bool(msg.is_starred),
+            )
+        self._theme_bubble_index = end
+        if end < len(msg_widgets):
+            self._theme_recolor_job = self.after(
+                1, lambda t=token: self._theme_bubble_chunk(t)
+            )
+        else:
+            self._theme_recolor_job = None
+
+    def _recolor_static_labels_for_theme(self) -> None:
+        """Üres lista / placeholder szövegek — ne maradjanak fix gray40."""
+        pal = self._palette
+        muted = self._pal_pick(pal.muted)
+        for w in self.msg_frame.winfo_children():
+            try:
+                if getattr(w, "_msg_id", None) is not None:
+                    continue
+                if getattr(w, "_is_more_btn", False) or getattr(w, "_is_day_header", False):
+                    continue
+                w.configure(text_color=muted)
+            except Exception:
+                pass
+
+    def _recolor_sources_for_theme(self) -> None:
+        """Témaváltás: bal oldali forráslista destroy / scroll ugrás nélkül."""
+        pal = self._palette
+        muted = self._pal_pick(pal.muted)
+        try:
+            for w in self.source_list.winfo_children():
+                if getattr(w, "_source_id", None) is not None:
+                    continue
+                try:
+                    w.configure(text_color=muted)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        self._refresh_source_badges()
+        for _sid, row in list(self._source_buttons.items()):
+            try:
+                if not row.winfo_exists():
+                    continue
+            except Exception:
+                continue
+            self._recolor_source_tool_buttons(row)
+
+    def _recolor_source_tool_buttons(self, widget: object) -> None:
+        try:
+            if isinstance(widget, ctk.CTkButton):
+                t = str(widget.cget("text") or "")
+                if t in ("✎", "🔄"):
+                    self._style_source_tool_button(widget)
+        except Exception:
+            pass
+        try:
+            for ch in widget.winfo_children():  # type: ignore[attr-defined]
+                self._recolor_source_tool_buttons(ch)
+        except Exception:
+            pass
+
     def _refresh_source_badges(self) -> None:
         """Csak szöveg/szín — nem építi újra a bal listát."""
         if not self._source_buttons:
@@ -2540,8 +2398,9 @@ class App(ctk.CTk):
             return
         selected_id = self._selected.id if self._selected else None
         pal = self._palette
-        muted = pal.muted
-        uj_col = pal.accent
+        muted = self._pal_pick(pal.muted)
+        uj_col = self._pal_pick(pal.accent)
+        text = self._pal_pick(pal.text)
         for sid, row in list(self._source_buttons.items()):
             try:
                 if not row.winfo_exists():
@@ -2552,7 +2411,7 @@ class App(ctk.CTk):
             n = counts.get(sid, 0)
             u = unread.get(sid, 0)
             active = selected_id == sid
-            bg = pal.source_active if active else pal.source_row
+            bg = self._pal_pick(pal.source_active if active else pal.source_row)
             if u:
                 stats = f"{n} levél · {u} új"
                 stats_color = uj_col
@@ -2564,7 +2423,7 @@ class App(ctk.CTk):
                 nl = self._source_name_labels.get(sid)
                 sl = self._source_stat_labels.get(sid)
                 if nl is not None:
-                    nl.configure(text=name, text_color=pal.text)
+                    nl.configure(text=name, text_color=text)
                 if sl is not None:
                     sl.configure(text=stats, text_color=stats_color)
             except Exception:
@@ -2913,7 +2772,20 @@ class App(ctk.CTk):
             self._clear_msg_frame()
             self._show_list_empty_state("no_mail" if self._selected else "empty_search")
         else:
-            self._schedule_bubble_refresh()
+            removed_card = False
+            try:
+                for w in self.msg_frame.winfo_children():
+                    if getattr(w, "_msg_id", None) == msg_id:
+                        w.destroy()
+                        self._shown_count = max(0, self._shown_count - 1)
+                        removed_card = True
+                        break
+            except Exception:
+                removed_card = False
+            if removed_card:
+                self._fix_scrollregion(self.msg_frame)
+            else:
+                self._schedule_bubble_refresh()
         self._set_status("Levél törölve a helyi archívumból.", force=True)
 
     def _manage_hidden_sources(self) -> None:
@@ -2947,7 +2819,18 @@ class App(ctk.CTk):
 
         ctk.CTkButton(win, text="Bezárás", command=win.destroy).pack(pady=10)
 
+    def _cancel_theme_recolor(self) -> None:
+        job = getattr(self, "_theme_recolor_job", None)
+        if job is not None:
+            try:
+                self.after_cancel(job)
+            except Exception:
+                pass
+        self._theme_recolor_job = None
+        self._theme_bubble_token = int(getattr(self, "_theme_bubble_token", 0)) + 1
+
     def _reload_messages(self, *, browse_source: bool = False) -> None:
+        self._cancel_theme_recolor()
         self._render_token += 1
         token = self._render_token
         self._clear_msg_frame()
@@ -2991,6 +2874,7 @@ class App(ctk.CTk):
         self.update_idletasks()
 
         def load() -> None:
+            truncated_total: Optional[int] = None
             try:
                 flt = self._list_filter_kwargs()
                 msgs = list_messages(
@@ -2999,6 +2883,8 @@ class App(ctk.CTk):
                     limit=LIST_FETCH_LIMIT,
                     **flt,
                 )
+                if len(msgs) >= LIST_FETCH_LIMIT:
+                    truncated_total = count_messages(source_id)
             except Exception as exc:
                 self.after(0, lambda: self._set_status(f"Betöltési hiba: {exc}"))
                 return
@@ -3008,6 +2894,12 @@ class App(ctk.CTk):
                     return
                 self._clear_msg_frame()
                 self._messages_cache = msgs
+                if truncated_total is not None and truncated_total > len(msgs):
+                    self._set_status(
+                        f"Lista: {len(msgs)} / {total_in_db} levél "
+                        f"(a legrégebbiek szűrővel vagy kereséssel érhetők el)",
+                        force=True,
+                    )
                 self._global_results = global_view or (
                     not browse_source and not self.search_only_selected_var.get() and bool(q)
                 )
@@ -3104,17 +2996,24 @@ class App(ctk.CTk):
             card = ctk.CTkFrame(
                 self.msg_frame,
                 fg_color=bg,
-                corner_radius=16,
-                border_width=3 if unread else (2 if selected else 1),
-                border_color=accent
-                if (unread or selected)
-                else (self._palette.muted[0], self._palette.day_bar[1]),
+                corner_radius=8,
+                border_width=1,
+                border_color=self._pal_pick(self._palette.muted),
             )
             card._msg_id = int(msg.id)  # type: ignore[attr-defined]
-            card.pack(fill="x", pady=(0, 10), padx=(12, 20))
+            card.pack(fill="x", pady=(0, 8), padx=(6, 10))
+            body = ctk.CTkFrame(card, fg_color="transparent")
+            body.pack(fill="both", expand=True)
+            stripe = ctk.CTkFrame(body, width=4 if unread else 0, corner_radius=2)
+            card._bubble_stripe = stripe  # type: ignore[attr-defined]
+            if unread or selected:
+                stripe.pack(side="left", fill="y", padx=(8, 6), pady=8)
+            inner = ctk.CTkFrame(body, fg_color="transparent")
+            inner.pack(side="left", fill="both", expand=True)
+            self._apply_message_card_style(card, unread=unread, selected=selected)
 
-            meta = ctk.CTkFrame(card, fg_color="transparent")
-            meta.pack(fill="x", padx=14, pady=(10, 0))
+            meta = ctk.CTkFrame(inner, fg_color="transparent")
+            meta.pack(fill="x", padx=4, pady=(10, 0))
             left_meta = ctk.CTkFrame(meta, fg_color="transparent")
             left_meta.pack(side="left")
             if unread:
@@ -3146,7 +3045,7 @@ class App(ctk.CTk):
             if msg.is_starred:
                 subj_text = f"★ {subj_text}"
             subj = ctk.CTkLabel(
-                card,
+                inner,
                 text=subj_text,
                 font=ctk.CTkFont(
                     family="Candara",
@@ -3159,11 +3058,11 @@ class App(ctk.CTk):
                 anchor="w",
             )
             subj._bubble_role = "subject"  # type: ignore[attr-defined]
-            subj.pack(anchor="w", padx=14, pady=(6, 4))
+            subj.pack(anchor="w", padx=4, pady=(6, 4))
 
             preview, has_more = self._bubble_preview(msg.body_text or "")
             prev = ctk.CTkLabel(
-                card,
+                inner,
                 text=preview,
                 font=self._body_font(13),
                 text_color=muted,
@@ -3172,10 +3071,10 @@ class App(ctk.CTk):
                 anchor="w",
             )
             prev._bubble_role = "preview"  # type: ignore[attr-defined]
-            prev.pack(anchor="w", padx=14, pady=(0, 4))
+            prev.pack(anchor="w", padx=4, pady=(0, 4))
 
-            actions = ctk.CTkFrame(card, fg_color="transparent")
-            actions.pack(fill="x", padx=10, pady=(2, 10))
+            actions = ctk.CTkFrame(inner, fg_color="transparent")
+            actions.pack(fill="x", padx=0, pady=(2, 10))
 
             def _open_full(mid: int = msg.id) -> None:
                 mid = int(mid)
@@ -3193,7 +3092,7 @@ class App(ctk.CTk):
                 text="Teljes szöveg",
                 width=130,
                 height=30,
-                corner_radius=14,
+                corner_radius=6,
                 fg_color=self._palette.primary,
                 hover_color=self._palette.primary_hover,
                 text_color=self._palette.btn_text,
@@ -3207,7 +3106,7 @@ class App(ctk.CTk):
                 text="★" if msg.is_starred else "☆",
                 width=36,
                 height=30,
-                corner_radius=12,
+                corner_radius=6,
                 fg_color=self._palette.source_row,
                 hover_color=self._palette.source_hover,
                 text_color=("#B8860B", "#FFD54F") if msg.is_starred else text_col,
@@ -3222,7 +3121,7 @@ class App(ctk.CTk):
                 text="PDF",
                 width=48,
                 height=30,
-                corner_radius=12,
+                corner_radius=6,
                 fg_color=self._palette.source_row,
                 hover_color=self._palette.source_hover,
                 text_color=text_col,
@@ -3236,7 +3135,7 @@ class App(ctk.CTk):
                 text="Word",
                 width=56,
                 height=30,
-                corner_radius=12,
+                corner_radius=6,
                 fg_color=self._palette.source_row,
                 hover_color=self._palette.source_hover,
                 text_color=text_col,
@@ -3250,7 +3149,7 @@ class App(ctk.CTk):
                 text="Másolat",
                 width=72,
                 height=30,
-                corner_radius=12,
+                corner_radius=6,
                 fg_color=self._palette.source_row,
                 hover_color=self._palette.source_hover,
                 text_color=text_col,
@@ -3259,15 +3158,18 @@ class App(ctk.CTk):
             copy_btn._bubble_btn = "aux"  # type: ignore[attr-defined]
             copy_btn.pack(side="left", padx=(0, 6))
 
+            d_fg, d_hover, d_txt = self._destructive_button_colors()
             del_btn = ctk.CTkButton(
                 actions,
                 text="Törlés",
                 width=64,
                 height=30,
-                corner_radius=12,
-                fg_color=("#C45C5C", "#8B3A3A"),
-                hover_color=("#A84848", "#6E2E2E"),
-                text_color=("#FFFFFF", "#FFFFFF"),
+                corner_radius=6,
+                fg_color=d_fg,
+                hover_color=d_hover,
+                text_color=d_txt,
+                border_width=1,
+                border_color=self._pal_pick(self._palette.accent_hover),
                 command=lambda mid=msg.id: self._delete_one_message(mid),
             )
             del_btn._bubble_btn = "danger"  # type: ignore[attr-defined]
@@ -3286,6 +3188,7 @@ class App(ctk.CTk):
                 card.bind("<Button-1>", lambda _e, m=msg.id: _open_full(m), add="+")
             except Exception:
                 pass
+            self._bind_hand_cursor_zone(card, exclude=actions)
 
         self._shown_count = end
 
@@ -3459,13 +3362,41 @@ class App(ctk.CTk):
         if was_unread or self._selected_msg_id == msg_id:
             self._apply_bubble_styles(remove_uj_for=msg_id if was_unread else None)
 
+    def _apply_message_card_style(
+        self,
+        card: Any,
+        *,
+        unread: bool,
+        selected: bool,
+    ) -> None:
+        pal = self._palette
+        muted = self._pal_pick(pal.muted)
+        accent = self._pal_pick(pal.accent)
+        if selected:
+            bg = self._pal_pick(pal.bubble_sel)
+        elif unread:
+            bg = self._pal_pick(pal.bubble_unread)
+        else:
+            bg = self._pal_pick(pal.bubble)
+        try:
+            card.configure(fg_color=bg, border_width=1, border_color=muted)
+        except Exception:
+            pass
+        stripe = getattr(card, "_bubble_stripe", None)
+        if stripe is not None:
+            try:
+                if unread:
+                    stripe.configure(fg_color=accent, width=4)
+                elif selected:
+                    stripe.configure(fg_color=muted, width=3)
+                else:
+                    stripe.configure(fg_color=bg, width=0)
+            except Exception:
+                pass
+
     def _apply_bubble_styles(self, *, remove_uj_for: Optional[int] = None) -> None:
         """Kijelölés / olvasott kinézet újrarajzolás nélkül."""
-        bubble = self._palette.bubble
-        bubble_unread = self._palette.bubble_unread
-        bubble_sel = self._palette.bubble_sel
         accent = self._palette.accent
-        border_idle = (self._palette.muted[0], self._palette.day_bar[1])
         text_col = self._palette.text
         muted = self._palette.muted
         for w in self.msg_frame.winfo_children():
@@ -3477,20 +3408,7 @@ class App(ctk.CTk):
                 continue
             selected = self._selected_msg_id == int(mid)
             unread = int(getattr(msg, "is_read", 1) or 0) == 0
-            if selected:
-                bg = bubble_sel
-            elif unread:
-                bg = bubble_unread
-            else:
-                bg = bubble
-            try:
-                w.configure(
-                    fg_color=bg,
-                    border_width=3 if unread else (2 if selected else 1),
-                    border_color=accent if (unread or selected) else border_idle,
-                )
-            except Exception:
-                continue
+            self._apply_message_card_style(w, unread=unread, selected=selected)
             self._recolor_bubble_children(
                 w,
                 unread=unread,
@@ -3532,10 +3450,11 @@ class App(ctk.CTk):
                 elif role == "preview":
                     ch.configure(text_color=muted)
                 elif btn == "primary":
-                    ch.configure(
-                        fg_color=pal.primary,
-                        hover_color=pal.primary_hover,
-                        text_color=pal.btn_text,
+                    self._button_depth(
+                        ch,
+                        fg=self._pal_pick(pal.primary),
+                        hover=self._pal_pick(pal.primary_hover),
+                        text=self._pal_pick(pal.btn_text),
                     )
                 elif btn == "star":
                     ch.configure(
@@ -3551,10 +3470,13 @@ class App(ctk.CTk):
                         text_color=text_col,
                     )
                 elif btn == "danger":
+                    d_fg, d_hover, d_txt = self._destructive_button_colors()
                     ch.configure(
-                        fg_color=("#C45C5C", "#8B3A3A"),
-                        hover_color=("#A84848", "#6E2E2E"),
-                        text_color=("#FFFFFF", "#FFFFFF"),
+                        fg_color=d_fg,
+                        hover_color=d_hover,
+                        text_color=d_txt,
+                        border_width=1,
+                        border_color=self._pal_pick(pal.accent_hover),
                     )
                 elif getattr(ch, "_is_uj_badge", False):
                     ch.configure(fg_color=pal.uj_bg)
@@ -3575,8 +3497,8 @@ class App(ctk.CTk):
                 starred=starred,
             )
 
-    def _recolor_message_list_inplace(self) -> None:
-        """Témaváltás: meglévő napfejléc / buborék / gomb — destroy nélkül."""
+    def _recolor_message_list_chrome(self) -> None:
+        """Napfejléc / „több” gomb — buborékok külön, háttérben."""
         pal = self._palette
         try:
             children = list(self.msg_frame.winfo_children())
@@ -3586,22 +3508,22 @@ class App(ctk.CTk):
             try:
                 if getattr(w, "_is_more_btn", False):
                     w.configure(
-                        fg_color=pal.primary,
-                        hover_color=pal.primary_hover,
-                        text_color=pal.btn_text,
+                        fg_color=self._pal_pick(pal.primary),
+                        hover_color=self._pal_pick(pal.primary_hover),
+                        text_color=self._pal_pick(pal.btn_text),
                     )
                     continue
                 if getattr(w, "_is_day_header", False):
-                    w.configure(fg_color=pal.day_bar)
+                    w.configure(fg_color=self._pal_pick(pal.day_bar))
                     for ch in w.winfo_children():
                         try:
-                            ch.configure(text_color=pal.text)
+                            ch.configure(text_color=self._pal_pick(pal.text))
                         except Exception:
                             pass
                     continue
             except Exception:
                 continue
-        self._apply_bubble_styles()
+        self._recolor_static_labels_for_theme()
 
     def _destroy_uj_badges(self, widget: object) -> None:
         try:
@@ -3786,6 +3708,7 @@ class App(ctk.CTk):
         ctk.CTkButton(bar, text="Bezárás", command=win.destroy).pack(side="right")
 
     def _rerender_bubbles(self) -> None:
+        self._cancel_theme_recolor()
         keep = max(self._shown_count, PAGE_SIZE)
         self._shown_count = 0
         self._last_day = ""
@@ -4015,12 +3938,56 @@ class App(ctk.CTk):
         except Exception:
             pass
 
+    def _run_source_sync(self, source_id: int) -> None:
+        if self._syncing:
+            self._set_status("Szinkron már fut — várj, amíg befejeződik.", force=True)
+            return
+        from app.db import get_source
+
+        src = get_source(source_id)
+        if not src:
+            return
+        self._syncing = True
+        self._set_status(f"Szinkronizálás: {src.name} …", force=True)
+
+        def progress(msg: str) -> None:
+            self.after(0, lambda m=msg: self._set_status(m))
+
+        def work() -> None:
+            n = 0
+            err: Optional[Exception] = None
+            try:
+                from app.gmail_fetch import fetch_one_source
+
+                n = int(fetch_one_source(source_id, progress=progress))
+            except Exception as exc:
+                err = exc
+
+            def done() -> None:
+                self._syncing = False
+                if err is not None:
+                    self._set_status(f"Hiba: {err}", force=True)
+                else:
+                    self._set_status(f"{src.name}: {n} új levél", force=True)
+                if self._source_buttons:
+                    self._refresh_source_badges()
+                else:
+                    self._reload_sources(reset_scroll=False)
+                if n > 0 and self._selected and int(self._selected.id) == int(source_id):
+                    self._reload_messages(browse_source=True)
+
+            self.after(0, done)
+
+        threading.Thread(target=work, daemon=True).start()
+
     def _run_sync(self, *, full_import: bool) -> None:
         if self._syncing:
             return
         self._syncing = True
         self._set_status(
-            "Teljes előzmény import… (lassú lehet)" if full_import else "Levelezés ellenőrzés…",
+            "Régebbi levelek betöltése… (több perc is lehet)"
+            if full_import
+            else "Levelek ellenőrzése…",
             force=True,
         )
 
@@ -4039,10 +4006,7 @@ class App(ctk.CTk):
                 else:
                     from app import sync_debug
 
-                    summary = (
-                        f"Kész — {total_new} új levél. {datetime.now():%H:%M} "
-                        f"(napló: Levelezés → Szinkron napló…)"
-                    )
+                    summary = f"Kész — {total_new} új levél. {datetime.now():%H:%M}"
                     sync_debug.log(f"GLOBÁLIS SZINKRON vége: összesen {total_new} új")
             except Exception as exc:
                 summary = f"Hiba: {exc}"
@@ -4077,8 +4041,12 @@ class App(ctk.CTk):
 
     def _full_import_async(self) -> None:
         if not messagebox.askyesno(
-            "Teljes import",
-            "Ez végignézi az előzményeket is (lassabb).\nFolytatod?",
+            "Régebbi levelek betöltése",
+            "A szerveren tárolt régebbi hírleveleket is letölti — "
+            "több percig is tarthat.\n\n"
+            "Első beállításkor vagy ha a „Most ellenőriz” után kevés levél jött, "
+            "érdemes.\n\n"
+            "Elindítod?",
         ):
             return
         self._run_sync(full_import=True)
@@ -4197,7 +4165,22 @@ class App(ctk.CTk):
             apply_window_icon(self)
         except Exception:
             pass
-        self.after(120, lambda: wc.strip_title_bar(self))
+
+        def _refresh_chrome_and_icon() -> None:
+            try:
+                wc.strip_title_bar(self)
+            except Exception:
+                pass
+            try:
+                from app.app_icon import apply_window_icon
+
+                apply_window_icon(self)
+            except Exception:
+                pass
+
+        self.after(120, _refresh_chrome_and_icon)
+        if first_time:
+            self.after(180, self._maybe_show_important_notice_at_startup)
 
     def _setup_frameless_window(self) -> None:
         """Címsor nélkül, de Windows ShowWindow(MAXIMIZE) — munkaterület + nagyítás OK."""
@@ -4333,11 +4316,6 @@ class App(ctk.CTk):
         if self._poll_job:
             try:
                 self.after_cancel(self._poll_job)
-            except Exception:
-                pass
-        if self._backup_job:
-            try:
-                self.after_cancel(self._backup_job)
             except Exception:
                 pass
         if self._resume_sync_job:

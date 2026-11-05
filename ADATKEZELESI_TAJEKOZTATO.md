@@ -8,7 +8,7 @@
 
 A **Hírlevél követő** (a továbbiakban: „Alkalmazás") egy asztali számítógépes program, amely lehetővé teszi a felhasználók számára e-mail hírlevelek helyi archiválását és kezelését. Ez az adatkezelési tájékoztató ismerteti, hogyan kezeljük az Ön személyes adatait az Alkalmazás használata során.
 
-**Alapelv:** Az Alkalmazás **100% lokálisan, az Ön számítógépén** működik. Nincsenek központi szerverek, nincsen az Ön adatainak továbbítása harmadik félhez, és nincs telemetria vagy nyomon követés.
+**Alapelv:** Az Alkalmazás **100% lokálisan, az Ön számítógépén** működik. Nincsenek központi szerverek, nincs az Ön adatainak továbbítása harmadik félhez, és nincs telemetria vagy nyomon követés.
 
 ---
 
@@ -26,43 +26,32 @@ Az Alkalmazás működéséhez szükséges adatfeldolgozás az GDPR **6. cikk (1
 
 ### 3.1 E-mail Fiók Hitelesítési Adatai
 - **Mit tárolunk:** IMAP-kiszolgáló címe (pl. `imap.gmail.com`), e-mail cím, alkalmazásjelszó (vagy teljes jelszó, ha a felhasználó ezt választja)
-- **Hol tárolódik:** Az Alkalmazás telepítési könyvtára alatt (`AppData\Local\HirlevelKoveto\config.json`)
-- **Jellemzői:** Helyi fájlban, **nincsen titkosítva** (FONTOS biztonsági nyilatkozat: ld. alább)
+- **Hol tárolódik:** `%LOCALAPPDATA%\HirlevelKoveto\config.json` (Windows felhasználói adatmappa — nem a program zip mappája)
+- **Jellemzői:** Helyi fájlban, **nincs titkosítva** (FONTOS biztonsági nyilatkozat: ld. alább)
 - **Kezelés célja:** IMAP-kiszolgálóhoz való kapcsolódás és e-mailek letöltése
 - **Megőrzési időtartam:** Az Alkalmazás letöltéséig; az Ön által törölhető
-- **Érintett jogok:** Hozzáférés, helyesbítés, törlés — az Alkalmazásban az „Adatkezelés" menü alatt
+- **Érintett jogok:** Hozzáférés, helyesbítés, törlés — **Levelezés → Levelező fiókok…** (fiók), főablak (levelek, források)
 
 ### 3.2 E-mail Üzenetek (Levelek) és Metaadatai
 - **Mit tárolunk:** Levélszöveg, feladó, tárgy, dátum, melléklet hivatkozások, olvasott/olvasatlan státusz
 - **Hol tárolódik:** Helyi SQLite adatbázis (`AppData\Local\HirlevelKoveto\data\hirlevelek.db`)
 - **Jellemzői:** Helyi fájlban, az Ön számítógépén
-- **Kezelés célja:** Hírlevelek archiválása, kereshetősége, kategorizálása
+- **Kezelés célja:** Hírlevelek archiválása, keresése és kategorizálása
 - **Megőrzési időtartam:** Az Ön által definiálva (amíg az Alkalmazásban marad)
 - **Érintett jogok:** Törlés (egyedi levél vagy teljes forrás), export
 
 ### 3.3 Hírlevel-Források (Félév Információ)
-- **Mit tárolunk:** Hírlevel-forrás neve, IMAP mappa azonosító, feliratkozás dátuma, felhasználó által hozzáadott megjegyzések
+- **Mit tárolunk:** Hírlevél-forrás neve, feladó e-mail címe, címke, elrejtett/aktív állapot
 - **Hol tárolódik:** Helyi SQLite adatbázis
 - **Kezelés célja:** Források szervezése és kezelése
 - **Megőrzési időtartam:** Az Ön által meghatározva
 - **Érintett jogok:** Törlés (forrás és az összes kapcsolódó levél)
-
-### 3.4 Google Drive Biztonsági Másolat (Opcionális)
-- **Mit tárolunk:** Az adatbázis és a konfigurációs fájlok biztonsági másolatai, ha Ön ezt engedélyezi
-- **Hol tárolódik:** Az Ön Google Drive-ján (az Ön Google-fiókjában), harmadik fél szerverein
-- **Jellemzői:** Csak akkor kerül feltöltésre, ha Ön kifejezetten engedélyezi és konfigurálja
-- **Kezelés célja:** Adatok biztonsági mentése és eszközök közötti szinkronizálás
-- **Jogalap:** Az Ön explicit beleegyezése (GDPR 6. cikk (1) bekezdés a) pont)
-- **Megjegyzés:** Google Drive használata során a Google Adatkezelési Szabályzatára is szükséges figyelemmel lenni (https://policies.google.com/privacy)
-
----
 
 ## 4. Adatszolgáltatás és Továbbítás
 
 ### 4.1 Harmadik Félnek Történő Továbbítás
 Az Alkalmazás **nem továbbít személyes adatokat harmadik félhez**, kivéve:
 - **IMAP-kiszolgálók:** Az Ön e-mail szolgáltatójához (pl. Gmail). Az Alkalmazás az IMAP protokollon keresztül kommunikál ezekkel a szerverekkel, de az e-mailek a saját gépén maradnak.
-- **Google Drive:** Ha Ön kifejezetten engedélyezi a biztonsági mentést. Ebben az esetben az adatok a Google szerverein tárolódnak a Google Adatkezelési Szabályzata szerint.
 
 ### 4.2 Fejlesztő Hozzáférése
 A fejlesztő **nem fér hozzá** az Ön adataihoz. Az Alkalmazás nem kommunikál fejlesztői szerverekkel, nem küld telemetriát, és nem gyűjt információt az Ön használatáról.
@@ -78,8 +67,9 @@ Az Alkalmazás helyi adatfeldolgozása előnyös az adatbiztonsági szempontból
 - **Operációs rendszerbeli védelem:** Az Alkalmazás az Windows-fájlrendszer jogosultságait és az Ön felhasználói jelszavára támaszkodik.
 
 ### 5.2 Biztonsági Kockázatok (Felelősségre Vonás)
-- **Jelszó-tárolás:** Az IMAP-jelszó (vagy alkalmazásjelszó) az `config.json` fájlban **nincsen titkosítva**. Ez azt jelenti, hogy ha valaki hozzáféréshez jut az Ön számítógépéhez, potenciálisan elérhetők az IMAP-hitelesítési adatok.
-  - **Megoldás:** Használjon erős operációs rendszer jelszót, titkosított lemez (BitLocker, FileVault) használatát javasoljuk.
+- **Jelszó-tárolás:** Az IMAP-jelszó (alkalmazásjelszó is) és az Outlook OAuth-tokenek az `config.json` fájlban **nincsenek titkosítva**. Ez azt jelenti, hogy ha valaki hozzáféréshez jut az Ön számítógépéhez, potenciálisan elérhetők a hitelesítési adatok.
+  - **Alkalmazásjelszó:** Ahol a szolgáltató engedi (pl. Gmail), a teljes fiókjelszó helyett alkalmazásjelszó használata **biztonságosabb beállítás** (korlátozott, visszavonható) — a fájlban azonban így is olvasható formában marad.
+  - **Megoldás:** Erős operációs rendszer jelszó, titkosított lemez (BitLocker, FileVault) használata.
 - **Adatbázis:** Az SQLite-adatbázis is helyi, az operációs rendszer jogosultságaira támaszkodva védett.
 - **Exportált fájlok:** Ha Ön exportálja az adatokat, az exportált fájlok ugyanilyen sérülékenyek.
 
@@ -97,22 +87,23 @@ Az Alkalmazás helyi adatfeldolgozása előnyös az adatbiztonsági szempontból
 Az Ön adatokhoz kapcsolódó jogai (GDPR VI. fejezet):
 
 ### 6.1 Hozzáférés Joga
-Jogosult az Ön személyes adataihoz hozzáférni. Az Alkalmazásban az **Adatkezelés** menüpont alatt megtekintheti és exportálhatja adatait.
+Jogosult az Ön személyes adataihoz hozzáférni. Az Alkalmazásban megtekintheti a leveleket és forrásokat a főablakban; a fiókbeállításokat: **Levelezés → Levelező fiókok…**
 
 ### 6.2 Helyesbítés Joga
-Jogosult pontatlan adatokat helyesbíteni. Az Alkalmazásban szerkeszthet félévés és levélmetaadatokat.
+Jogosult pontatlan adatokat helyesbíteni: forrás szerkesztése (✎), **Címke**, fiók adatok mentése a Levelező fiókok ablakban.
 
 ### 6.3 Törlés Joga („Feledtetéshez Való Jog")
 Jogosult személyes adatait törölni:
-- **Egyedi levél:** Az Alkalmazásban az üzenetmenü alatt
-- **Teljes forrás:** Az Alkalmazásban jobb klikk → **Forrás törlése** (az összes kapcsolódó levél törlésével)
-- **IMAP hitelesítés:** Az **Adatkezelés** menüpont alatt lehet eltávolítani
+- **Egyedi levél:** törlés a levél buborékján
+- **Forrás és levelek:** bal oldalon **Törlés…**
+- **Csak helyi levelek:** **Helyi levelek törlése…**
+- **Levelező fiók:** **Levelezés → Levelező fiókok… → Törlés**
 
 ### 6.4 Az Adatfeldolgozás Korlátozása
-Jogosult adatfeldolgozást korlátozni. Az Alkalmazásban a szinkronizálást leállíthatja vagy törölt levél helyett csak megjelölheti olvasottnak.
+Jogosult adatfeldolgozást korlátozni: program bezárása/kilépés, forrás **Elrejtés**, ritkább **Beállítások → Frissítési intervallum**.
 
 ### 6.5 Adathordozhatóság
-Jogosult adatait előnyösen használható formátumban megkapni. Az Alkalmazásban van **Export** funkció.
+Jogosult adatait géppel olvasható, széles körben használt formátumban megkapni: **Word / PDF** export; teljes archívum: **Fájl → Mentés…** vagy **Mentés másként…** (zip).
 
 ### 6.6 Panasz Benyújtása
 Jogosult panaszt benyújtani a felelős adatvédelmi hatóságnál (Magyarországon: [Nemzeti Adatvédelmi és Információszabadság Hatóság](https://www.naih.hu/)).
@@ -154,7 +145,7 @@ Az Alkalmazás által feldolgozott e-mailek (hírlevelek) harmadik felek (küld�
 
 ## 11. Ezt a Tájékoztatót Érintő Módosítások
 
-A fejlesztő jogosult ezt az adatkezelési tájékoztatót bármikor módosítani. Az alkalmazás frissítéseihez nyomon követheti a változásokat. **Az alkalmazás használatának folytatása a módosítások elfogadásának tekintendő.**
+A fejlesztő jogosult ezt az adatkezelési tájékoztatót bármikor módosítani. Frissítés után az aktuális szöveg a programban elérhető: **Súgó → Jogi Dokumentumok Központ… → Adatkezelés**.
 
 ---
 
@@ -162,12 +153,8 @@ A fejlesztő jogosult ezt az adatkezelési tájékoztatót bármikor módosítan
 
 Ha kérdése van az adatkezelésről vagy szeretné gyakorolni fenti jogait, vegye fel a kapcsolatot:
 
-- **GitHub Issues:** [Hírlevél követő projekt](https://github.com/) — adatkezeléssel kapcsolatos kérdésekhez
+- **Hibabejelentő / kérdés:** **Súgó → Hibabejelentő…** a programban ([GitHub Issues](https://github.com/Gergely-hub/hirlevel-archivalas/issues))
 - **Helyi Adatvédelmi Hatóság (Magyarország):** [Nemzeti Adatvédelmi és Információszabadság Hatóság (NAIH)](https://www.naih.hu/)
-
----
-
-**Elfogadás:** Az Alkalmazás használatával Ön elfogadja ezt az adatkezelési tájékoztatót.
 
 ---
 

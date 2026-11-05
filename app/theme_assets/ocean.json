@@ -28,19 +28,19 @@
     ]
   },
   "CTkButton": {
-    "corner_radius": 6,
-    "border_width": 0,
+    "corner_radius": 7,
+    "border_width": 1,
     "fg_color": [
-      "#0e7490",
-      "#0e7490"
+      "#0c4a6e",
+      "#0c4a6e"
     ],
     "hover_color": [
-      "#155e75",
-      "#155e75"
+      "#075985",
+      "#075985"
     ],
     "border_color": [
-      "#4a6d78",
-      "#4a6d78"
+      "#0284c7",
+      "#0284c7"
     ],
     "text_color": [
       "#ecfeff",
@@ -96,8 +96,8 @@
       "#4a6d78"
     ],
     "hover_color": [
-      "#155e75",
-      "#155e75"
+      "#0284c7",
+      "#0284c7"
     ],
     "checkmark_color": [
       "#ecfeff",
@@ -129,8 +129,8 @@
       "#ffffff"
     ],
     "button_hover_color": [
-      "#a5f3fc",
-      "#a5f3fc"
+      "#b8e4f2",
+      "#b8e4f2"
     ],
     "text_color": [
       "#0b2e3a",
@@ -143,8 +143,8 @@
   },
   "CTkRadioButton": {
     "corner_radius": 1000,
-    "border_width_checked": 6,
-    "border_width_unchecked": 3,
+    "border_width_checked": 4,
+    "border_width_unchecked": 2,
     "fg_color": [
       "#22d3ee",
       "#22d3ee"
@@ -154,8 +154,8 @@
       "#4a6d78"
     ],
     "hover_color": [
-      "#155e75",
-      "#155e75"
+      "#0284c7",
+      "#0284c7"
     ],
     "text_color": [
       "#0b2e3a",
@@ -192,31 +192,31 @@
       "#4a6d78"
     ],
     "progress_color": [
-      "#155e75",
-      "#155e75"
+      "#0284c7",
+      "#0284c7"
     ],
     "button_color": [
       "#22d3ee",
       "#22d3ee"
     ],
     "button_hover_color": [
-      "#155e75",
-      "#155e75"
+      "#0284c7",
+      "#0284c7"
     ]
   },
   "CTkOptionMenu": {
     "corner_radius": 6,
     "fg_color": [
-      "#0e7490",
-      "#0e7490"
+      "#0c4a6e",
+      "#0c4a6e"
     ],
     "button_color": [
-      "#155e75",
-      "#155e75"
+      "#0284c7",
+      "#0284c7"
     ],
     "button_hover_color": [
-      "#0e7490",
-      "#0e7490"
+      "#0c4a6e",
+      "#0c4a6e"
     ],
     "text_color": [
       "#ecfeff",
@@ -243,8 +243,8 @@
       "#4a6d78"
     ],
     "button_hover_color": [
-      "#155e75",
-      "#155e75"
+      "#0284c7",
+      "#0284c7"
     ],
     "text_color": [
       "#0b2e3a",
@@ -276,20 +276,20 @@
       "#d9f0f7"
     ],
     "selected_color": [
-      "#0e7490",
-      "#0e7490"
+      "#0c4a6e",
+      "#0c4a6e"
     ],
     "selected_hover_color": [
-      "#155e75",
-      "#155e75"
+      "#0284c7",
+      "#0284c7"
     ],
     "unselected_color": [
       "#d9f0f7",
       "#d9f0f7"
     ],
     "unselected_hover_color": [
-      "#a5f3fc",
-      "#a5f3fc"
+      "#b8e4f2",
+      "#b8e4f2"
     ],
     "text_color": [
       "#0b2e3a",
@@ -336,8 +336,8 @@
       "#ffffff"
     ],
     "hover_color": [
-      "#a5f3fc",
-      "#a5f3fc"
+      "#b8e4f2",
+      "#b8e4f2"
     ],
     "text_color": [
       "#0b2e3a",

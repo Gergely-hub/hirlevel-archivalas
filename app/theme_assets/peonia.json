@@ -28,8 +28,8 @@
     ]
   },
   "CTkButton": {
-    "corner_radius": 6,
-    "border_width": 0,
+    "corner_radius": 7,
+    "border_width": 1,
     "fg_color": [
       "#e11d48",
       "#e11d48"
@@ -39,8 +39,8 @@
       "#be123c"
     ],
     "border_color": [
-      "#9f5a6c",
-      "#9f5a6c"
+      "#be123c",
+      "#be123c"
     ],
     "text_color": [
       "#ffffff",
@@ -143,8 +143,8 @@
   },
   "CTkRadioButton": {
     "corner_radius": 1000,
-    "border_width_checked": 6,
-    "border_width_unchecked": 3,
+    "border_width_checked": 4,
+    "border_width_unchecked": 2,
     "fg_color": [
       "#fb7185",
       "#fb7185"

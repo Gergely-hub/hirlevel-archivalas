@@ -47,7 +47,7 @@
 <p>Ez a dokumentum ismerteti az alkalmazás biztonsági jellemzőit, a feldolgozandó adatok védelmét, valamint az Ön által vállalt biztonsági felelősséget a <strong>Hírlevél követő</strong> asztali alkalmazás használata során.</p>
 
 <div class="note">
-    <strong>📌 Fő biztonsági megállapítás:</strong> Az alkalmazás 100%-ban helyi feldolgozást nyújt. Az adatok nem kerülnek fejlesztői szerverekre, nincsen központi szinkronizálás vagy telemetria. Az adatvédelem <strong>az Ön operációs rendszer biztonságára és számítógép-fizikai biztonságára</strong> támaszkodik.
+    <strong>📌 Fő biztonsági megállapítás:</strong> Az alkalmazás 100%-ban helyi feldolgozást nyújt. Az adatok nem kerülnek fejlesztői szerverekre, nincs központi szinkronizálás vagy telemetria. Az adatvédelem <strong>az Ön operációs rendszer biztonságára és számítógép-fizikai biztonságára</strong> támaszkodik.
 </div>
 
 <h2>2. Architektúra és Adatok Helye</h2>
@@ -58,34 +58,34 @@
     <li><strong>Konkrét útvonal:</strong> <code>C:\Users\[YourUsername]\AppData\Local\HirlevelKoveto\</code></li>
 </ul>
 
-<h3>2.2 Nincsen Szerver Kommunikáció</h3>
+<h3>2.2 Nincs szerverkommunikáció</h3>
 <ul>
     <li><span class="check">✓</span> Az alkalmazás <strong>nem kommunikál</strong> fejlesztői szerverekkel</li>
-    <li><span class="check">✓</span> Nincsen telemetria vagy nyomon követés</li>
-    <li><span class="check">✓</span> Nincsen automatikus frissítés-ellenőrzés</li>
-    <li><span class="check">✓</span> Nincsen analytics</li>
+    <li><span class="check">✓</span> Nincs telemetria vagy nyomon követés</li>
+    <li><span class="check">✓</span> Nincs automatikus frissítés-ellenőrzés</li>
+    <li><span class="check">✓</span> Nincs analytics</li>
 </ul>
 
 <h2>3. Tárolt Adatok és Biztonsági Jellemzőik</h2>
 
 <h3>3.1 config.json – IMAP Hitelesítés</h3>
 <div class="warning">
-    <strong>⚠️ KRITIKUS: Nincsen titkosítva!</strong>
+    <strong>⚠️ KRITIKUS: Nincs titkosítva!</strong>
 </div>
-<p><strong>Tartalom:</strong> IMAP-szerver, e-mail cím, jelszó/alkalmazásjelszó</p>
+<p><strong>Tartalom:</strong> IMAP-szerver, e-mail cím, jelszó/alkalmazásjelszó; Outlooknál OAuth access/refresh token</p>
 <p><strong>Biztonsági státusz:</strong></p>
 <ul>
-    <li><span class="cross">✗</span> <strong>TITKOSÍTÁS:</strong> Nincsen titkosítva</li>
-    <li><span class="cross">✗</span> <strong>FIZIKAI BIZTONSAG:</strong> Ha valaki hozzáféréshez jut az Ön számítógépéhez, szoftver segítségével kiolvasható</li>
+    <li><span class="cross">✗</span> <strong>TITKOSÍTÁS:</strong> Nincs titkosítva</li>
+    <li><span class="cross">✗</span> <strong>FIZIKAI BIZTONSÁG:</strong> Ha valaki hozzáféréshez jut az Ön számítógépéhez, szoftverrel kiolvasható</li>
 </ul>
 
 <p><strong>Biztonsági Javaslatok:</strong></p>
 <ol>
-    <li><strong>Gmail-nál:</strong> Használjon <strong>alkalmazásjelszót</strong> (App Password), nem a teljes Gmail-jelszót
+    <li><strong>Gmail-nál (és hasonló szolgáltatóknál):</strong> Használjon <strong>alkalmazásjelszót</strong>, nem a teljes fiókjelszót
         <ul>
             <li>Google Account → Security → App passwords</li>
-            <li>Ez a jelszó csak az Alkalmazáshoz használható</li>
-            <li>Külön inaktiválható a Google-ban</li>
+            <li>Ez a jelszó csak az Alkalmazáshoz használható, külön visszavonható</li>
+            <li><strong>Fontos:</strong> az alkalmazásjelszó is titkosítás nélkül kerül a <code>config.json</code>-ba — ez nem helyettesíti a BitLockert, de jobb, mint a fő jelszó megadása</li>
         </ul>
     </li>
     <li><strong>BitLocker:</strong> Engedélyezze a Windows lemez-titkosítást
@@ -114,7 +114,7 @@
     <ol>
         <li>GitHub-ról töltse le az alkalmazást (nem más forrásokból)</li>
         <li>Antivírus szoftverrel ellenőrizze az EXE-fájlt</li>
-        <li>Telepítse az alkalmazást (Inno Setup telepítő)</li>
+        <li>Csomagolja ki a GitHub Release zip csomagját, majd indítsa a HirlevelKoveto.exe fájlt (nincs aláírt Setup)</li>
     </ol>
 </div>
 
@@ -122,12 +122,13 @@
     <h3>✓ Az Alkalmazás Konfigurálása</h3>
     <ol>
         <li><strong>Gmail-nál:</strong> Alkalmazásjelszót generáljon</li>
-        <li><strong>config.json:</strong> Ne módosítsa manuálisan</li>
+        <li><strong>Outlooknál:</strong> Microsoft bejelentkezés a programban; a token a config.json-ban marad</li>
+        <li><strong>config.json:</strong> Ne módosítsa manuálisan, ne ossza meg</li>
     </ol>
 </div>
 
 <div class="success">
-    <h3>✓ Folyamatos Biztonsag (Rendszeres)</h3>
+    <h3>✓ Folyamatos biztonság (rendszeres)</h3>
     <table>
         <thead>
             <tr>
@@ -174,12 +175,13 @@
     <div class="checklist-item"><span class="check">☐</span> <strong>Fizikai biztonság</strong> – Ne hagyja felügyelet nélkül az nyitott laptopot</div>
 </div>
 
-<h2>6. Biztonsagi Incidensek</h2>
+<h2>6. Biztonsági incidensek</h2>
 <h3>Ha gyanítja, hogy az IMAP jelszó kompromittálódott:</h3>
 <ol>
     <li>Azonnal módosítsa az IMAP-jelszavát</li>
     <li>Google Fiók (Gmail-nál): https://myaccount.google.com/security → Jelszó módosítása</li>
-    <li>Az Alkalmazásban: Adatkezelés → IMAP hitelesítés törlése és új jelszó megadása</li>
+    <li>Az Alkalmazásban: Levelezés → Levelező fiókok… → fiók törlése vagy új jelszó / új Microsoft bejelentkezés</li>
+    <li>Outlooknál: Microsoft fiók → Biztonság → „Bejelentkezési mód” / app-hozzáférés visszavonása</li>
 </ol>
 
 <h2>7. Felelősség Nyilatkozat</h2>

@@ -6,13 +6,18 @@ APP_NAME = "Hírlevél követő"
 APP_VERSION = "1.0"
 
 try:
+    from app.build_info import BUILD_NUMBER as _BUILD_NUMBER
     from app.build_info import BUILD_STAMP as _BUILD_STAMP
+    from app.build_info import VERSION_LABEL as _VERSION_LABEL
 except ImportError:
+    _BUILD_NUMBER = 0
     _BUILD_STAMP = "dev"
+    _VERSION_LABEL = APP_VERSION
 
 NEVJEGY = f"""{APP_NAME}
-Verzió: {APP_VERSION}
-Build: {_BUILD_STAMP}
+Verzió: {_VERSION_LABEL}
+Build szám: {_BUILD_NUMBER}
+Időbélyeg: {_BUILD_STAMP}
 
 Hírlevelek helyi archívuma a leveleződből.
 A levelek a gépeden maradnak; a program nem küldi el őket harmadik félnek.
@@ -22,40 +27,49 @@ Teljes kilépés: Fájl → Kilépés, vagy a tálca menü → Kilépés.
 """
 
 SÚGÓ_ROVID = """Indítás
-• Indítsd a Hírlevél követőt (INDITAS vagy a program ikonja).
-• Ha „már fut” üzenetet kapsz: nézd a tálcát (óra mellett), ott megnyithatod.
+• Indítsd a Hírlevél követőt (INDITAS.cmd, a program mappából az exe, vagy az asztali parancsikon).
+• Ha „már fut” üzenetet kapsz: nézd a tálcát (óra mellett), ott megnyithatod vagy kiléphetsz.
 
-Levelező fiók (IMAP)
-• Levelezés → Levelező fiókok… — szolgáltató választása (Gmail, Outlook, Yahoo,
-  iCloud, Freemail, Citromail, Vipmail) vagy egyéni IMAP szerver.
-• Több fiók is felvehető; a „Most ellenőriz” mindet szinkronizálja.
-• Sok helyen alkalmazásjelszó kell (Gmail / Outlook / Yahoo / iCloud),
-  nem a szokásos bejelentkezési jelszó.
-• ProtonMail nincs támogatva (nincs sima IMAP).
-• Most ellenőriz: új levelek behúzása.
-• Teljes előzmény import: régebbi levelek is (lassabb).
+Levelező fiók
+• Levelezés → Levelező fiókok… — szolgáltató (Gmail, Outlook, Yahoo, iCloud,
+  Freemail, Citromail, Vipmail) vagy Egyéni / más szolgáltató.
+• Több fiók is felvehető; a „Most ellenőriz” mindegyiken végigmegy.
+• Gmail, Yahoo, iCloud, magyar szolgáltatók: jelszó vagy alkalmazásjelszó
+  (Alkalmazásjelszó készítése gomb a fiók űrlapon).
+• Outlook / Hotmail: „Bejelentkezés Microsoft-fiókkal” — a program elmenti a tokent.
+• ProtonMail (proton.me stb.) hivatalosan nem támogatott.
+• Levelezés → Most ellenőriz — új levelek.
+• Levelezés → Régebbi levelek betöltése… — múltbeli hírlevelek (lassú, ritkán).
 
-Hírlevelek
-• Bal oldalon válassz küldőt, vagy vedd fel: + Új hírlevél.
-• Címke: csoportosítja a listát.
-• Elrejtés: eltünteti a listából (nem törli); Elrejtettek… alatt visszaállítható.
-• Törlés…: a hírlevelet és helyi leveleit végleg törli (a levelező fiókban megmaradnak).
-• Helyi levelek törlése…: csak a levelek, a hírlevél a listában marad.
-• Buborékon „Törlés”: egyetlen helyi levél.
+Hírlevelek (bal oldal)
+• + Új hírlevél — feladó e-mail címe (forrás).
+• Címke — csoportosítás; Elrejtés — listából kiveszi (Elrejtettek… alatt vissza).
+• Törlés… — forrás + helyi levelek; Helyi levelek törlése… — csak a levelek.
+• 🔄 a forrás során — csak az adott forrás szinkronja.
 
 Olvasás és keresés
 • Középen a lista, jobbra a formázott levél.
-• Szűrők: Összes / Olvasatlan / Kedvenc, vagy dátumtól.
-• Keresés felül; Tallózáshoz válassz hírlevelet bal oldalon.
+• Szűrők: Összes / Olvasatlan / Kedvenc, dátumtól.
+• Keresés felül; forrás kiválasztása bal oldalon tallózáshoz.
 
-Mentés Word / PDF
-• Egy levél: a buborékon vagy az olvasóban Word / PDF.
-• Több levél: a lista fejlécén Word lista / PDF lista (a jelenlegi szűrés szerint).
+Export
+• Egy levél: Word / PDF a buborékon vagy az olvasóban.
+• Több levél: Word lista / PDF lista (középső lista fejlécében).
 
-Biztonsági mentés
-• Fájl → Mentés biztonsági másolat…
-• Beállítások → Mentési mappa (gépre)…
-• Automata mentés: Beállításokban bekapcsolható (napi / heti / havi).
+Biztonsági mentés (kézi)
+• Fájl → Mentés… — utolsó mentés mappájába, új időbélyeges zip.
+• Fájl → Mentés másként… — mappa és fájlnév választása.
+• Fájl → Backup visszaállítás… — zip-ből visszaállítás.
+• Nincs automatikus háttérmentés.
+
+Beállítások
+• Frissítési intervallum — milyen gyakran ellenőrizd a leveleket (nem backup).
+• Téma, Windows indításkor induljon.
+
+Súgó és jogi szövegek
+• Használati útmutató… — részletes leírás.
+• Jogi Dokumentumok Központ… — adatkezelés, biztonság, feltételek (fülök).
+• Hibabejelentő… — hibajelzés böngészőben.
 """
 
 MENTES_BIZTONSAG = """Mit tartalmaz a biztonsági mentés?
@@ -63,11 +77,12 @@ A mentés egy tömörített fájl (zip), benne az archívumod és a beállítás
 A beállításokban lehetnek a levelező fiók adatai (például alkalmazásjelszó).
 
 Gépre mentés
-A zip a választott mappába kerül. Ezt a mappát te őrzöd (lemez, USB, stb.).
+A zip a választott mappába kerül (Mentés… az utolsó mappába, Mentés másként… bárhova).
+Ezt a mappát te őrzöd (lemez, USB, stb.). Nincs felhőmentés a programban.
 
 Visszaállítás
-Fájl → Visszaállítás backupból… — felülírja a jelenlegi archívumot.
-Előtte a program biztonsági másolatot készít a régi állapotról.
+Fájl → Backup visszaállítás… — zip kiválasztása, majd felülírja a jelenlegi archívumot.
+A régi fájlok .pre-restore időbélyeggel átnevezve maradnak.
 
 Fontos
 • A mentési fájlt kezelj bizalmasan (jelszó lehet benne).
@@ -75,73 +90,65 @@ Fontos
 • Teljes kilépés előtt ellenőrizd, hogy a mentés sikeres volt-e.
 """
 
-GOOGLE_DRIVE_BEJELENTKEZES = """Google Drive mentés
+FONTOS_TUDNIVALOK = """Üdvözöl a Hírlevél követő!
 
-Egyszer (a programhoz):
-• Beállítások → Google Drive előkészítés…
-• A varázsló végigvezet, majd kiválasztod a Google-tól letöltött fájlt.
+Helyi program
+• A levelek és beállítások a gépeden maradnak (AppData\\Local\\HirlevelKoveto).
+• Nincs telemetria, nincs központi szerver — csak a levelező szerverrel beszél (IMAP).
 
-Utána minden felhasználó a saját Google-fiókjával:
-1. Beállítások → Mentés helye → Google Drive
-2. Beállítások → Google Drive bejelentkezés…
-3. Böngészőben saját fiókkal engedélyezed
-4. Fájl → Mentés biztonsági másolat… (vagy automata mentés)
+Biztonság
+• A levelező jelszó vagy Outlook-token a config.json fájlban van, titkosítás nélkül.
+• Gmailnél érdemes alkalmazásjelszót használni (korlátozott, visszavonható).
+• Erős Windows-jelszó és opcionális BitLocker ajánlott.
 
-A fájlok a saját Drive-odon a „HirlevelKoveto-backup” mappában lesznek.
-"""
+Helyi tárolás és biztonsági másolat
+• A szinkronizált levelek és beállítások folyamatosan a helyi adatbázisba kerülnek.
+• Külön zip biztonsági másolatot csak te indíthatod: Fájl → Mentés… / Mentés másként… (nincs automatikus háttérmentés).
 
-GOOGLE_DRIVE_NINCS_ELOKESZITVE = """A Google Drive még nincs előkészítve ennél a programnál.
-
-Nyisd meg: Beállítások → Google Drive előkészítés…
-Ott egy rövid lépéssor segít; utána mindenki a saját Google-fiókjával tud menteni.
-
-Addig a gépre mentés elérhető:
-Beállítások → Mentés helye → Gépre (mappa).
+Részletes jogi és adatvédelmi szövegek
+Súgó → Jogi Dokumentumok Központ…
 """
 
 ADATKEZELES = """Adatkezelés röviden
 
 Helyi feldolgozás
-• A levelek és beállítások az AppData mappádban tárolódnak (nem az interneten).
-• A program a leveleződől (IMAP, SSL/TLS) olvassa a hírleveleket a megadott fiókokkal.
-• Nincsen telemetria, nincsen központi szerver.
+• A levelek és beállítások az AppData\\Local\\HirlevelKoveto mappában (nem az interneten).
+• A program a levelező szerverről olvassa a hírleveleket (titkosított kapcsolat).
+• Nincs telemetria, nincs központi szerver.
 
 Adataid
-• IMAP-jelszó (vagy alkalmazásjelszó): a config.json fájlban, NEM titkosítva
-  → Javasolt: Gmail-nál alkalmazásjelszó, nem a teljes jelszó
-  → Javasolt: Windows-jelszó + BitLocker (lemez-titkosítás) erősen ajánlott
-• Levelek és metaadatok: SQLite adatbázis, helyi tárolás
-• Jól ellenőrizd: ki fér hozzá az Ön gépéhez
+• Levelező jelszó / Outlook token: config.json, NEM titkosítva
+  → Ahol lehet: alkalmazásjelszó (korlátozott, visszavonható)
+  → Erős Windows-jelszó + BitLocker ajánlott
+• Levelek: SQLite adatbázis (data\\hirlevelek.db), helyben
+• Zip biztonsági másolat: csak kézzel (Fájl → Mentés… / Mentés másként…); a levelek szinkronkor automatikusan a helyi DB-be kerülnek
 
-Google Drive (opcionális)
-• Ha bekapcsolod: a mentések az Ön Google-fiókon lesznek, Google biztonsagi szabályok szerint
-• Teljes manuális kontroll: te döntöd el, hogy kívánsz-e menteni
+Gyakorlati jogok a programban
+• Megtekintés: levelek, források a főablakban
+• Export: Word / PDF; teljes archívum: zip mentés
+• Törlés: levél (buborék), forrás (Törlés…), fiók (Levelező fiókok… → Törlés)
+• Helyesbítés: forrás szerkesztése (✎), címke, fiók adatok mentése
 
-Többet szeretnél?
-Teljes GDPR-tájékoztatáshoz lásd a csomagban:
-  ADATKEZELESI_TAJEKOZTATO.md
-  BIZTONSAG_ES_ADATVEDELEM.md
+Teljes jogi szöveg
+Súgó → Jogi Dokumentumok Központ… → Adatkezelés fül
+(vagy a telepítési mappa / Hivatalos HTML fájlok).
 """
 
 ADATVEDELEM_TELJES = """GDPR és Adatvédelem
 
-Ez az alkalmazás 100%-ban helyi feldolgozást nyújt.
-Minden adat az Ön gépén marad. Nincsen fejlesztői szerver, nincsen telemetria.
+Ez az alkalmazás helyi feldolgozást nyújt.
+Minden adat az Ön gépén marad. Nincs fejlesztői szerver, nincs telemetria.
 
-Adatkezelő: ÖN (saját gépén feldolgozás)
-Feldolgozandó adatok: IMAP-jelszó, levelek, metaadatok, beállítások
-Megőrzés: az Ön által irányítva (törlés, export, biztonsági mentés)
+Adatkezelő: ÖN (saját gépén)
+Feldolgozandó adatok: levelező jelszó/token, levelek, beállítások
+Megőrzés: az Ön döntése (törlés, export, zip mentés)
 Az Ön jogai: hozzáférés, helyesbítés, törlés, adathordozhatóság
-Panaszok: NAIH (Nemzeti Adatvédelmi és Információszabadság Hatóság)
+Panasz: NAIH (naih.hu)
 
-Biztonsági kockázatok:
-• Az IMAP-jelszó nincs titkosítva: física biztonsag az Ön feladata
-• Ajánlott: alkalmazásjelszó + Windows-jelszó + BitLocker
-• Adatbázis is helyi: Windows felhasználói jogosultságokra támaszkodva
+Biztonsági kockázatok
+• Jelszavak titkosítás nélkül a config.json-ban
+• Ajánlott: alkalmazásjelszó + BitLocker + erős Windows-jelszó
 
-Teljes tájékoztatás a csomagban:
-  → ADATKEZELESI_TAJEKOZTATO.md (GDPR-kompatibilis)
-  → BIZTONSAG_ES_ADATVEDELEM.md (biztonsági javaslatok)
-  → FELHASZNALASI_FELTETELEK.md (EULA, licenc, felelősség)
-  → LICENSE.md (MIT-licenc)
+Részletes tájékoztatók
+Súgó → Jogi Dokumentumok Központ…
 """

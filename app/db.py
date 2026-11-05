@@ -146,11 +146,41 @@ def load_config() -> dict[str, Any]:
                 encoding="utf-8",
             )
     # utf-8-sig: PowerShell/Notepad BOM-os mentés is működik
-    return json.loads(CONFIG_PATH.read_text(encoding="utf-8-sig"))
+    cfg = json.loads(CONFIG_PATH.read_text(encoding="utf-8-sig"))
+    if str(cfg.get("backup_target") or "").strip().lower() == "gdrive":
+        cfg["backup_target"] = "local"
+    return cfg
 
 
 def save_config(cfg: dict[str, Any]) -> None:
-    CONFIG_PATH.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    ensure_data_dir()
+    payload = json.dumps(cfg, ensure_ascii=False, indent=2) + "\n"
+    tmp = CONFIG_PATH.with_suffix(".json.tmp")
+    tmp.write_text(payload, encoding="utf-8")
+    tmp.replace(CONFIG_PATH)
+
+
+def update_account_oauth_tokens(
+    email: str,
+    oauth_token: str,
+    oauth_refresh_token: str | None = None,
+) -> None:
+    """Outlook OAuth: refresh után a config is frissüljön."""
+    key = (email or "").strip().lower()
+    if not key:
+        return
+    cfg = load_config()
+    changed = False
+    for raw in cfg.get("accounts") or []:
+        if (raw.get("email") or "").strip().lower() != key:
+            continue
+        raw["oauth_token"] = oauth_token
+        if oauth_refresh_token:
+            raw["oauth_refresh_token"] = oauth_refresh_token
+        changed = True
+        break
+    if changed:
+        save_config(cfg)
 
 
 def get_accounts(cfg: Optional[dict[str, Any]] = None) -> list[Account]:
@@ -169,7 +199,10 @@ def get_accounts(cfg: Optional[dict[str, Any]] = None) -> list[Account]:
         if not email or "SAJAT@" in email.upper():
             continue
         if is_oauth:
-            if not oauth_token and (not pwd or pwd.startswith("xxxx")):
+            has_token = bool(oauth_token)
+            has_refresh = bool(oauth_refresh)
+            has_pwd = bool(pwd) and not pwd.startswith("xxxx")
+            if not has_token and not has_refresh and not has_pwd:
                 continue
         elif not pwd or pwd.startswith("xxxx"):
             continue

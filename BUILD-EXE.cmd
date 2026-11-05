@@ -55,17 +55,22 @@ REM Ideiglenes dist a projektben, majd atmasoljuk EGYSZERU program\ mappaba
   --hidden-import=app.export_rich ^
   --hidden-import=app.tray ^
   --hidden-import=app.app_icon ^
-  --hidden-import=app.gdrive_backup ^
   --hidden-import=app.win_chrome ^
   --hidden-import=app.dpi ^
   --hidden-import=app.single_instance ^
   --hidden-import=app.help_text ^
   --hidden-import=app.about ^
   --hidden-import=app.usage_guide ^
+  --hidden-import=app.legal_center ^
+  --hidden-import=app.important_notice ^
+  --hidden-import=app.accounts_ui ^
+  --hidden-import=app.power_events ^
   --hidden-import=app.window_util ^
+  --hidden-import=app.oauth2_outlook ^
+  --hidden-import=msal ^
+  --collect-submodules msal ^
+  --hidden-import=app.sync_debug ^
   --hidden-import=pystray ^
-  --hidden-import=googleapiclient ^
-  --hidden-import=google_auth_oauthlib ^
   --hidden-import=PIL._tkinter_finder ^
   --collect-all customtkinter ^
   --collect-all darkdetect ^

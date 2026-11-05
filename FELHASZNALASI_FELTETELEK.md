@@ -89,15 +89,15 @@ Az Alkalmazás **nem helyettesíti az ezredik szintű, kritikus támogatást** v
 
 ### 5.1 Támogatás
 A fejlesztő **nem vállal garantált ügyfélszolgálatot**. Azonban:
-- GitHub Issues-on keresztül technikai támogatást lehet kérni
+- **Súgó → Hibabejelentő…** — technikai kérdés vagy hiba (GitHub Issues)
 - A fejlesztő jóindulatúan kezeli a hibajelentéseket
 - A frissítések és javítások saját mérlegelés alapján történnek
 
 ### 5.2 Frissítések
 Az Alkalmazás frissítések szabadon elérhetők, de:
-- A frissítés **opcionális**; az Ön döntése, hogy feltölti-e
+- A frissítés **opcionális**; az Ön döntése, hogy telepíti-e
 - A frissítés **nem kötelező**, az alkalmazás régebbi verzióinak továbbra is használhatók
-- Az új frissítések nagyobb módosításokat hozhatnak, amelyek kompatibilidási vagy adatvesztési kockázatot hordozhatnak
+- Az új frissítések nagyobb módosításokat hozhatnak, amelyek kompatibilitási vagy adatvesztési kockázatot hordozhatnak
 
 ### 5.3 Felhagyás
 A fejlesztő **jogosult bármikor felhagyni** az Alkalmazás fejlesztésével és támogatásával, értesítés vagy magyarázat nélkül.
@@ -106,11 +106,11 @@ A fejlesztő **jogosult bármikor felhagyni** az Alkalmazás fejlesztésével é
 
 ## 6. Adatvédelem és Magánszféra
 
-Az adatkezelési tájékoztatót lásd a **ADATKEZELESI_TAJEKOZTATO.md** dokumentumban. Röviden:
+Az adatkezelési tájékoztató: **Súgó → Jogi Dokumentumok Központ… → Adatkezelés** fül (vagy a csomag Hivatalos mappájában). Röviden:
 - **100% helyi feldolgozás:** Az Ön adatai az Ön gépén maradnak
-- **Nincsen telemetria:** Az Alkalmazás nem küld adatokat fejlesztői szerverekre
-- **Google Drive opcionális:** Ha engedélyezi, a biztonsági mentésekhez hozzáférést kell adnia
-- **Biztonsági kockázatok:** Az IMAP-jelszó nincsen titkosítva az `config.json` fájlban
+- **Nincs telemetria:** Az Alkalmazás nem küld adatokat fejlesztői szerverekre
+- **Biztonsági mentés:** Helyi zip (Fájl menü); nem automatikus
+- **Biztonsági kockázatok:** Az IMAP-jelszó nincs titkosítva a `config.json` fájlban
 
 ---
 
@@ -136,7 +136,7 @@ Az Alkalmazás használatához:
 
 ### 8.2 Csatorna-Korlátozások
 Az Alkalmazás csak az **IMAP-protokollon** keresztül kommunikál:
-- Nem támogatja más e-mail protokollok (POP3, Microsoft Exchange, stb.)
+- Nem támogat más e-mail protokollokat (POP3, Microsoft Exchange stb.)
 - Az e-mail szolgáltató IMAP-támogatást igényel
 
 ---
@@ -152,18 +152,18 @@ Az Alkalmazást az **Európai Unió és Magyarország jogi keretei** között ke
 
 ### 9.2 Jogkövetkezmények
 Az Alkalmazás jogosulatlan vagy törvénysértő használata:
-- **Jogi следование:** Ön felelős az összes jogi következményre (büntetőjog, magánjog, adatvédelmi bírságok)
-- **Nincsen fejlesztői felelősség:** A fejlesztő nem felelős az Alkalmazás jogosulatlan használatáből eredő jogi vagy pénzügyi kárért
+- **Jogi következmény:** Ön felelős az összes jogi következményért (büntetőjog, magánjog, adatvédelmi bírságok)
+- **Nincs fejlesztői felelősség:** A fejlesztő nem felelős az Alkalmazás jogosulatlan használatából eredő jogi vagy pénzügyi kárért
 
 ### 9.3 GDPR Betartása
-Az Alkalmazás beépített adatvédelmi funkciókat nyújt (törlés, exportálás, opcionális biztonsági másolat), de az **Ön felelőssége** a GDPR-ral való megfelelés, ha harmadik felek adatait kezeli.
+Az Alkalmazás beépített adatvédelmi funkciókat nyújt (törlés, Word/PDF export, kézi zip mentés), de az **Ön felelőssége** a GDPR-ral való megfelelés, ha harmadik felek adatait kezeli.
 
 ---
 
 ## 10. Záradékok
 
 ### 10.1 Egész Megállapodás
-Ez a dokumentum és az **ADATKEZELESI_TAJEKOZTATO.md** az Ön és a fejlesztő között a teljes megállapodást képezi az Alkalmazás felhasználásáról. Korábbi vita vagy szóbeli megállapodások helyettesítik.
+Ez a dokumentum és az adatkezelési tájékoztató (Jogi Dokumentumok Központ → Adatkezelés) az Ön és a fejlesztő között a teljes megállapodást képezi az Alkalmazás használatáról. Korábbi vitákra vagy szóbeli megállapodásokra vonatkozó rendelkezések helyett ez az irat az irányadó.
 
 ### 10.2 Értelmezés
 Ha a Feltételek valamelyik pontja érvénytelen vagy nem alkalmazható, a többi pont érvényes marad. A Feltételek bármely nem alkalmazása nem tekintendő lemondásnak.
@@ -172,19 +172,18 @@ Ha a Feltételek valamelyik pontja érvénytelen vagy nem alkalmazható, a több
 A fejlesztő jogosult a Feltételeket bármikor módosítani. Az Alkalmazás továbbra is történő használata az új Feltételek elfogadásának tekintendő.
 
 ### 10.4 Joghatóság
-A Feltételek értelmezése és alkalmazása **magyar jog** alá tartozik. Az összes jogviták **magyar bíróságok** hatásköre alá tartoznak.
+A Feltételek értelmezése és alkalmazása **magyar jog** alá tartozik. **Minden jogvita** a **magyar bíróságok** hatáskörébe tartozik.
 
 ---
 
 ## 11. Kapcsolatfelvétel
 
 Kérdéseit vagy panaszait az alábbiakon keresztül nyújthatja be:
-- **GitHub Issues:** [Hírlevél követő projekt](https://github.com/)
-- **Fejlesztő:** Az Alkalmazás GitHub-oldalán
+- **Hibabejelentő:** Súgó → Hibabejelentő… ([GitHub Issues](https://github.com/Gergely-hub/hirlevel-archivalas/issues))
 
 ---
 
-**Elfogadás:** Az Alkalmazás telepítésével és használatával Ön feloldja és elfogadja jelen Felhasználási Feltételeket.
+**Elfogadás:** Az Alkalmazás telepítésével és használatával Ön elfogadja jelen Felhasználási Feltételeket.
 
 ---
 

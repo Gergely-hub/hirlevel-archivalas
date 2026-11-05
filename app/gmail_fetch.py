@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import email
 import html as html_lib
 import imaplib
@@ -46,6 +45,13 @@ def _oauth_access_token(acc: Account) -> str | None:
     if acc.oauth_refresh_token:
         ref = try_refresh_account_tokens(acc.oauth_refresh_token, email=acc.email)
         if ref:
+            from app.db import update_account_oauth_tokens
+
+            update_account_oauth_tokens(
+                acc.email,
+                ref["oauth_token"],
+                ref.get("oauth_refresh_token"),
+            )
             return ref["oauth_token"]
     tok = (acc.oauth_token or "").strip()
     return tok or None
@@ -59,10 +65,9 @@ def _imap_login(mail: imaplib.IMAP4_SSL, acc: Account, progress: ProgressCb | No
                 "OAuth2: nincs token — Levelező fiókok → Microsoft OAuth bejelentkezés"
             )
         _emit(progress, f"🔑 OAuth2 (XOAUTH2): {acc.email}")
-        auth_string = base64.b64encode(
-            f"user={acc.email}\1auth=Bearer {token}\1\1".encode()
-        )
-        mail.authenticate("XOAUTH2", lambda x: auth_string)
+        # imaplib maga base64-kódolja a callback választ — ne adjunk előre kódolt stringet.
+        raw = f"user={acc.email}\1auth=Bearer {token}\1\1".encode()
+        mail.authenticate("XOAUTH2", lambda _x: raw)
         return
     _emit(progress, f"🔑 Jelszó login: {acc.email}")
     mail.login(acc.email, acc.app_password)
@@ -300,8 +305,19 @@ def _resolve_known_uid(
     for key in candidates:
         if key in known:
             return key, True
+    if imap_uid:
+        suf = f":{imap_uid}"
+        bare = f"{account_id}:{imap_uid}"
+        for k in known:
+            if k == bare or k.endswith(suf):
+                return k, True
     new_key = f"{account_id}:{mid}" if mid else f"{account_id}:{folder}:{imap_uid}"
     return new_key, False
+
+
+def _imap_quote(value: str) -> str:
+    """IMAP SEARCH string — idézőjel és backslash escape."""
+    return (value or "").replace("\\", "\\\\").replace('"', '\\"')
 
 
 def _uids_needing_html_refresh(account_id: str) -> set[str]:
@@ -722,6 +738,11 @@ def _fetch_one_source_on_account(
                     continue
 
                 msg = email.message_from_bytes(raw)
+                want_from = (src.email or "").strip().lower()
+                sender = _extract_addr(_decode_header_value(msg.get("From")))
+                if want_from and sender != want_from:
+                    continue
+
                 subject = _decode_header_value(msg.get("Subject"))
                 body_text, body_html = _parts_from_message(msg)
 
@@ -806,7 +827,7 @@ def fetch_one_source(
     for acc in accs:
         total += _fetch_one_source_on_account(src, acc, progress)
 
-    _emit(progress, f"{src.name}: {total} új levél (napló: {sync_debug.log_path_str()})")
+    _emit(progress, f"{src.name}: {total} új levél")
     return total
 
 
@@ -873,11 +894,12 @@ def refresh_one_message_html(msg_id: int) -> bool:
                     )
 
         # SUBJECT + FROM keresés
-        subj = (full.subject or "").replace('"', "")
+        subj = _imap_quote((full.subject or "")[:80])
+        from_q = _imap_quote(src.email)
         for folder in folders:
             if not _select_folder(mail, folder):
                 continue
-            criteria = f'(FROM "{src.email}" SUBJECT "{subj[:80]}")'
+            criteria = f'(FROM "{from_q}" SUBJECT "{subj}")'
             typ, data = mail.search(None, criteria)
             if typ != "OK" or not data or not data[0]:
                 continue

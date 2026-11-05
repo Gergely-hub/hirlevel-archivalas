@@ -1,19 +1,24 @@
-"""Microsoft Outlook OAuth2 — eszközkód (device code), IMAP XOAUTH2."""
+"""Microsoft Outlook OAuth2 — PKCE (böngészős bejelentkezés), IMAP XOAUTH2."""
 
 from __future__ import annotations
 
 import json
-import time
 import urllib.error
 import urllib.parse
 import urllib.request
-import webbrowser
 from typing import Any
 
 from app.db import load_config, save_config
 
-# Delegált IMAP (Outlook.com / Microsoft 365)
-IMAP_SCOPE = "https://outlook.office.com/IMAP.AccessAsUser.All offline_access openid email profile"
+# MSAL: csak az IMAP scope — openid / offline_access / profile reserved (MSAL adja).
+MSAL_INTERACTIVE_SCOPES = ["https://outlook.office.com/IMAP.AccessAsUser.All"]
+# Token refresh (urllib): offline_access kell a refresh tokenhez.
+IMAP_SCOPE = "https://outlook.office.com/IMAP.AccessAsUser.All offline_access"
+
+# Mozilla Thunderbird nyilvános desktop client ID (PKCE / loopback, mint a levelezőkliens).
+# Felülírható: config.json → microsoft_oauth_client_id
+DEFAULT_MICROSOFT_OAUTH_CLIENT_ID = "9e5f94bc-e8a4-4e73-b8be-63364c29d753"
+
 
 def _authority(email: str = "") -> str:
     """Személyes Outlook (@outlook.*, hotmail, live) → consumers; egyébként common."""
@@ -31,46 +36,24 @@ def _authority(email: str = "") -> str:
     return "common"
 
 
+def _authority_url(email: str = "") -> str:
+    return f"https://login.microsoftonline.com/{_authority(email)}"
+
+
 def _token_url(email: str = "") -> str:
-    return f"https://login.microsoftonline.com/{_authority(email)}/oauth2/v2.0/token"
-
-
-def _device_url(email: str = "") -> str:
-    return f"https://login.microsoftonline.com/{_authority(email)}/oauth2/v2.0/devicecode"
+    return f"{_authority_url(email)}/oauth2/v2.0/token"
 
 
 def microsoft_client_id() -> str:
     cfg = load_config()
     cid = str(cfg.get("microsoft_oauth_client_id") or "").strip()
-    return cid
+    return cid or DEFAULT_MICROSOFT_OAUTH_CLIENT_ID
 
 
 def set_microsoft_client_id(client_id: str) -> None:
     cfg = load_config()
     cfg["microsoft_oauth_client_id"] = client_id.strip()
     save_config(cfg)
-
-
-def start_device_flow(client_id: str, email: str = "") -> dict[str, Any]:
-    body = urllib.parse.urlencode(
-        {"client_id": client_id, "scope": IMAP_SCOPE}
-    ).encode("utf-8")
-    req = urllib.request.Request(_device_url(email), data=body, method="POST")
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read().decode("utf-8"))
-
-
-def poll_device_tokens(client_id: str, device_code: str, email: str = "") -> dict[str, Any]:
-    body = urllib.parse.urlencode(
-        {
-            "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-            "client_id": client_id,
-            "device_code": device_code,
-        }
-    ).encode("utf-8")
-    req = urllib.request.Request(_token_url(email), data=body, method="POST")
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        return json.loads(resp.read().decode("utf-8"))
 
 
 def refresh_access_token(
@@ -86,73 +69,51 @@ def refresh_access_token(
     ).encode("utf-8")
     req = urllib.request.Request(_token_url(email), data=body, method="POST")
     with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+        return json.loads(resp.read().decode())
 
 
-def run_device_login(
+def run_pkce_login(
     *,
     email: str = "",
     on_status: Any = None,
-    timeout_sec: int = 600,
+    timeout_sec: int = 300,
 ) -> dict[str, Any] | None:
     """
-    Eszközkódos Microsoft bejelentkezés (2FA a microsoft.com oldalon).
-    Vissza: access_token, refresh_token, expires_in — vagy None.
+    Böngészős Microsoft bejelentkezés (authorization code + PKCE, loopback).
+    Vissza: access_token, refresh_token, … — vagy None / kivétel.
     """
+    import msal
+
     client_id = microsoft_client_id()
-    if not client_id:
-        raise ValueError(
-            "Hiányzik a Microsoft OAuth alkalmazás-ID (Azure). "
-            "Add meg a Levelező fiókok ablakban, vagy a config.json "
-            "microsoft_oauth_client_id mezőjében."
-        )
+    authority = _authority_url(email)
 
     def status(msg: str) -> None:
         if on_status:
             on_status(msg)
 
-    status("Eszközkód kérése…")
-    dev = start_device_flow(client_id, email=email)
-    user_code = dev.get("user_code") or ""
-    uri = dev.get("verification_uri") or "https://microsoft.com/devicelogin"
-    message = dev.get("message") or f"Nyisd meg {uri} és add meg: {user_code}"
-    device_code = dev.get("device_code") or ""
-    interval = int(dev.get("interval") or 5)
-    expires = int(dev.get("expires_in") or 900)
+    status(
+        "Megnyílik a Microsoft bejelentkezés a böngészőben.\n\n"
+        "Jelentkezz be ugyanazzal az e-mail címmel, mint az űrlapon."
+    )
+    app = msal.PublicClientApplication(client_id, authority=authority)
+    result = app.acquire_token_interactive(
+        scopes=MSAL_INTERACTIVE_SCOPES,
+        login_hint=email or None,
+        prompt="select_account",
+        timeout=timeout_sec,
+    )
+    if not result:
+        status("Bejelentkezés megszakítva.")
+        return None
+    if "access_token" not in result:
+        err = result.get("error_description") or result.get("error") or str(result)
+        raise ValueError(err)
+    status("Microsoft bejelentkezés sikeres.")
+    return result
 
-    status(f"{message}")
-    try:
-        webbrowser.open(uri)
-    except Exception:
-        pass
 
-    deadline = time.monotonic() + min(timeout_sec, expires)
-    while time.monotonic() < deadline:
-        time.sleep(max(3, interval))
-        try:
-            tok = poll_device_tokens(client_id, device_code, email=email)
-        except urllib.error.HTTPError as exc:
-            err_body = exc.read().decode("utf-8", errors="replace")
-            try:
-                err = json.loads(err_body)
-            except json.JSONDecodeError:
-                err = {"error": err_body}
-            code = str(err.get("error") or "")
-            if code in ("authorization_pending", "slow_down"):
-                status("Várakozás a Microsoft bejelentkezésre…")
-                continue
-            if code == "expired_token":
-                status("Lejárt az eszközkód — indítsd újra.")
-                return None
-            raise ValueError(err.get("error_description") or err_body) from exc
-
-        if tok.get("access_token"):
-            status("Microsoft bejelentkezés sikeres.")
-            return tok
-        status("Várakozás…")
-
-    status("Időtúllépés — nem érkezett bejelentkezés.")
-    return None
+# Régi név / device code teszthez
+run_device_login = run_pkce_login
 
 
 def try_refresh_account_tokens(

@@ -8,6 +8,10 @@ venv/
 _build_out/
 _build_work/
 program/
+dist_release/
+dist_installer/
+HirlevelKoveto-for-Claude.zip
+Mentések/
 _regi_ne_hasznald/
 
 *.apk

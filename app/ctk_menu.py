@@ -36,6 +36,9 @@ _WIN_GLYPH_RESTORE = "\uE923"
 _WIN_GLYPH_CLOSE = "\uE8BB"
 
 
+# CTk set_appearance_mode nélkül is a paletta appearance szerint választunk színt.
+_UI_APPEARANCE: Optional[str] = None
+
 _MENU_THEME = MenuTheme(
     bar_bg=("gray85", "gray20"),
     bar_text=("gray10", "gray90"),
@@ -58,13 +61,21 @@ def _attach_popup_hover(btn: ctk.CTkButton, th: MenuTheme) -> None:
 
     def on_enter(_e: Any) -> None:
         try:
-            btn.configure(fg_color=th.hover, text_color=th.hover_text)
+            btn.configure(
+                fg_color=_pick_theme_color(th.hover),
+                text_color=_pick_theme_color(th.hover_text),
+                border_width=0,
+            )
         except Exception:
             pass
 
     def on_leave(_e: Any) -> None:
         try:
-            btn.configure(fg_color="transparent", text_color=th.text)
+            btn.configure(
+                fg_color="transparent",
+                text_color=_pick_theme_color(th.text),
+                border_width=0,
+            )
         except Exception:
             pass
 
@@ -79,9 +90,22 @@ def _caption_icon_font() -> ctk.CTkFont:
         return ctk.CTkFont(size=13, weight="bold")
 
 
+def set_ui_appearance(mode: str) -> None:
+    global _UI_APPEARANCE
+    _UI_APPEARANCE = mode if mode in ("Light", "Dark") else None
+
+
 def _pick_theme_color(pair: tuple[str, str]) -> str:
-    mode = ctk.get_appearance_mode()
+    mode = _UI_APPEARANCE or ctk.get_appearance_mode()
     return pair[1] if mode == "Dark" else pair[0]
+
+
+def _menu_btn_no_frame(btn: ctk.CTkButton, *, corner_radius: int = 0) -> None:
+    """Főmenü / legördülő: ne örökölje a CTk téma gomb-keretét (border_width=1)."""
+    try:
+        btn.configure(border_width=0, corner_radius=corner_radius)
+    except Exception:
+        pass
 
 
 def _attach_caption_hover(btn: ctk.CTkButton) -> None:
@@ -272,10 +296,13 @@ class CTkMenuPopup(ctk.CTkToplevel):
                     anchor="w",
                     height=32,
                     fg_color="transparent",
-                    text_color=th.text,
-                    hover_color=th.hover,
+                    text_color=_pick_theme_color(th.text),
+                    hover_color=_pick_theme_color(th.hover),
+                    border_width=0,
+                    corner_radius=0,
                     command=run,
                 )
+                _menu_btn_no_frame(btn)
                 _attach_popup_hover(btn, th)
                 btn.pack(fill="x", padx=4, pady=1)
                 btn.bind("<Enter>", lambda _e: self._close_child(), add="+")
@@ -297,10 +324,13 @@ class CTkMenuPopup(ctk.CTkToplevel):
                     anchor="w",
                     height=32,
                     fg_color="transparent",
-                    text_color=th.text,
-                    hover_color=th.hover,
+                    text_color=_pick_theme_color(th.text),
+                    hover_color=_pick_theme_color(th.hover),
+                    border_width=0,
+                    corner_radius=0,
                     command=toggle,
                 )
+                _menu_btn_no_frame(btn)
                 _attach_popup_hover(btn, th)
                 btn.pack(fill="x", padx=4, pady=1)
                 btn.bind("<Enter>", lambda _e: self._close_child(), add="+")
@@ -327,10 +357,13 @@ class CTkMenuPopup(ctk.CTkToplevel):
                     anchor="w",
                     height=32,
                     fg_color="transparent",
-                    text_color=th.text,
-                    hover_color=th.hover,
+                    text_color=_pick_theme_color(th.text),
+                    hover_color=_pick_theme_color(th.hover),
+                    border_width=0,
+                    corner_radius=0,
                     command=choose,
                 )
+                _menu_btn_no_frame(btn)
                 _attach_popup_hover(btn, th)
                 btn.pack(fill="x", padx=4, pady=1)
                 btn.bind("<Enter>", lambda _e: self._close_child(), add="+")
@@ -446,10 +479,13 @@ class CTkMenuPopup(ctk.CTkToplevel):
             anchor="w",
             height=32,
             fg_color="transparent",
-            text_color=th.text,
-            hover_color=th.hover,
+            text_color=_pick_theme_color(th.text),
+            hover_color=_pick_theme_color(th.hover),
+            border_width=0,
+            corner_radius=0,
             command=open_flyout,
         )
+        _menu_btn_no_frame(header)
         _attach_popup_hover(header, th)
         header.pack(fill="x", padx=4, pady=1)
         header.bind("<Enter>", on_enter, add="+")
@@ -552,11 +588,13 @@ class CTkMenuBar(ctk.CTkFrame):
                 text=title,
                 width=btn_w,
                 height=32,
-                corner_radius=4,
+                corner_radius=0,
+                border_width=0,
                 fg_color="transparent",
-                text_color=th.bar_text,
-                hover_color=th.btn_hover,
+                text_color=_pick_theme_color(th.bar_text),
+                hover_color=_pick_theme_color(th.btn_hover),
             )
+            _menu_btn_no_frame(btn)
             btn.pack(side="left", padx=2)
             btn.configure(command=lambda button=btn, it=items: self._on_click(button, it))
             btn.bind(
@@ -623,12 +661,14 @@ class CTkMenuBar(ctk.CTkFrame):
                     width=self._BTN_W,
                     height=self._BTN_H,
                     corner_radius=0,
+                    border_width=0,
                     font=win_font,
                     fg_color="transparent",
                     text_color=icon_col,
                     hover_color=hov,
                     command=cmd,
                 )
+                _menu_btn_no_frame(b)
                 b.pack(side="left")
                 if close:
                     _attach_close_caption_hover(b)
@@ -651,7 +691,12 @@ class CTkMenuBar(ctk.CTkFrame):
             pass
         for btn in self._menu_buttons:
             try:
-                btn.configure(text_color=theme.bar_text, hover_color=theme.btn_hover)
+                btn.configure(
+                    text_color=_pick_theme_color(theme.bar_text),
+                    hover_color=_pick_theme_color(theme.btn_hover),
+                    border_width=0,
+                    corner_radius=0,
+                )
             except Exception:
                 pass
         _restyle_caption_buttons(self._win_btns, theme)

@@ -10,7 +10,7 @@
 
 Ez a dokumentum ismerteti az alkalmazás biztonsági jellemzőit, a feldolgozandó adatok védelmét, valamint az Ön által vállalt biztonsági felelősséget a **Hírlevél követő** asztali alkalmazás használata során.
 
-**Fő biztonsági megállapítás:** Az Alkalmazás 100%-ban helyi feldolgozást nyújt. Az adatok nem kerülnek fejlesztői szerverekre, nincsen központi szinkronizálás vagy telemetria. Az adatvédelem **az Ön operációs rendszer biztonságára és számítógép-fizikai biztonságára** támaszkodik.
+**Fő biztonsági megállapítás:** Az Alkalmazás 100%-ban helyi feldolgozást nyújt. Az adatok nem kerülnek fejlesztői szerverekre, nincs központi szinkronizálás vagy telemetria. Az adatvédelem **az Ön operációs rendszer biztonságára és számítógép-fizikai biztonságára** támaszkodik.
 
 ---
 
@@ -30,10 +30,10 @@ Ez a dokumentum ismerteti az alkalmazás biztonsági jellemzőit, a feldolgozand
   C:\Users\[YourUsername]\AppData\Local\HirlevelKoveto\
   ```
 
-### 2.2 Nincsen Szerver Kommunikáció
+### 2.2 Nincs szerverkommunikáció
 - **Fejlesztői szerverek:** Az Alkalmazás **nem kommunikál** fejlesztői szerverekkel
-- **Telemetria:** Nincsen használati adatok gyűjtése
-- **Analitika:** Nincsen nyomon követés vagy analytics
+- **Telemetria:** Nincs használati adatgyűjtés
+- **Analitika:** Nincs nyomon követés vagy analytics
 - **Frissítések:** Az Alkalmazás nem ellenőrzi automatikusan az új verziókat
 
 ### 2.3 IMAP-Kommunikáció Csak
@@ -60,15 +60,16 @@ Az Alkalmazás csak az Ön e-mail szolgáltatójához (pl. Gmail) csatlakozik:
 ```
 
 **Biztonsági státusz:**
-- ❌ **TITKOSÍTÁS:** Nincsen titkosítva
+- ❌ **TITKOSÍTÁS:** Nincs titkosítva
 - ⚠️ **HOZZÁFÉRÉS:** Az Ön Windows felhasználójának jogosultságai korlátozzák az olvasást
-- ⚠️ **FIZIKAI BIZTONSAG:** Ha valaki hozzáféréshez jut az Ön számítógépéhez, szoftver segítségével kiolvasható
+- ⚠️ **FIZIKAI BIZTONSÁG:** Ha valaki hozzáféréshez jut az Ön számítógépéhez, szoftverrel kiolvasható
 
 **Biztonsági Javaslatok:**
 1. **Gmail-nál:** Használjon **alkalmazásjelszót** (App Password), nem a teljes Gmail-jelszót
    - Google Account → Security → App passwords
    - Ez a jelszó csak az Alkalmazáshoz használható, és külön inaktiválható
-2. **Más e-mail szolgáltató:** Ha disponible, hasonló alkalmazásjelszó-mechanizmust használjon
+   - **Fontos:** az alkalmazásjelszó is titkosítás nélkül kerül a `config.json`-ba — jobb választás, de nem helyettesíti a BitLockert
+2. **Más e-mail szolgáltató:** Ha elérhető, hasonló alkalmazásjelszó-mechanizmust használjon
 3. **Gyenge jelszó:** Ne tároljunk egyszerű vagy gyenge jelszót itt
 
 ### 3.2 `hirlevelek.db` – SQLite Adatbázis
@@ -109,14 +110,6 @@ Az Alkalmazás lehetővé teszi az adatbázis exportálását (pl. CSV, JSON):
 - **Szerver igazolás:** Az Alkalmazás az IMAP-szerver tanúsítványát ellenőrzi
 - **Biztonság:** ✅ Erős
 
-### 4.2 Google Drive Biztonsági Másolat (Opcionális)
-Ha Ön engedélyezi a Google Drive biztonsági mentést:
-- **Titkosítás:** OAuth 2.0 + HTTPS
-- **Google-szerver:** Az Alkalmazás az Ön Google Drive-ján tárolt fájlokhoz a Google API-n keresztül fér hozzá
-- **Biztonság:** ✅ Erős (Google biztonsági szintje)
-
----
-
 ## 5. Hozzáférés Vezérlés és Jogosultságok
 
 ### 5.1 Operációs Rendszer Szintű Védelmi
@@ -142,7 +135,7 @@ C:\Users\[UserName]\AppData\Local\HirlevelKoveto\
 
 ### 6.1 Alkalmazás Biztonság
 - Az Alkalmazás **nyílt forráskódú** (GitHub-on elérhető)
-- Az **Ön ellenőrizheti** a teljes forráskódot – nincsen rejtett kód
+- Az **Ön ellenőrizheti** a teljes forráskódot – nincs rejtett kód
 - Az EXE-fájl a forráskódból készül (PyInstaller)
 
 ### 6.2 Vírusfertőzés Kockázata
@@ -186,8 +179,7 @@ Ha valaki **fizikai hozzáféréshez** jut az Ön számítógépéhez:
 ### 8.1 Biztonsági Másolat (Backup)
 - Az Alkalmazás **nem készít automatikus biztonsági másolatot**
 - Az Ön felelőssége, hogy:
-  - Google Drive biztonsági másolatot engedélyez (opcionális)
-  - Vagy periodikusan manuálisan exportálja az adatokat
+  - Periodikusan biztonsági mentést készít (Fájl → Mentés… / Mentés másként…)
   - Vagy Windows Biztonsági mentésben szerepelteti a mappát
 
 ### 8.2 Adatvesztés Esete
@@ -210,14 +202,6 @@ Az Ön által letöltött e-mailek (hírlevelek) tartalmazhatnak:
 - Megnyitotta az e-mailt (pixelpont tracking)
 - Milyen linkekre kattintott (click tracking)
 
-### 9.2 Google Drive OAuth Biztonsag
-Ha engedélyezi a Google Drive biztonsági másolatot:
-- Az Alkalmazás **csak az Ön beleegyezésével** kapja meg az hozzáférési jogosultságokat
-- A Google megjeleníti az Ön **Hozzáférés engedélyezése** párbeszédében, hogy az Alkalmazás mely adatokhoz férhet hozzá
-- **Mindig ellenőrizze** az engedélyek körét az OAuth képernyőn
-
----
-
 ## 10. Alkalmazás Frissítések és Biztonsági Javítások
 
 ### 10.1 Frissítések Keresése
@@ -225,7 +209,7 @@ Ha engedélyezi a Google Drive biztonsági másolatot:
 - Az Ön felelőssége, hogy időnként ellenőrizze a GitHub-on: https://github.com/[owner]/hirlevel-gmail-archivalas
 - Biztonsági frissítések fontosak — ne hagyja figyelmen kívül
 
-### 10.2 Frissítési Biztonsag
+### 10.2 Frissítési biztonság
 - Az Alkalmazás frissítéseit mindig a GitHub-ról töltse le (nem ismeretlen webhelyekről)
 - Az EXE vagy telepítő **digitálisan aláírható** (jelenleg nem aláírt)
 - Mielőtt telepítene, ellenőrizze a verziószámot és a kiadási megjegyzéseket
@@ -237,13 +221,13 @@ Ha engedélyezi a Google Drive biztonsági másolatot:
 ### Első Telepítéskor
 1. ✅ **GitHub-ról töltse le** az Alkalmazást (nem más forrásokból)
 2. ✅ **Antivírus szoftverrel ellenőrizze** az EXE-fájlt
-3. ✅ **Telepítse az Alkalmazást** (Inno Setup telepítő)
+3. ✅ **Csomagolja ki** a GitHub Release **zip** csomagját, majd indítsa az **HirlevelKoveto.exe** fájlt (nincs aláírt Setup — szándékos)
 
 ### Az Alkalmazás Konfigurálása
 4. ✅ **Gmail-nál:** Alkalmazásjelszót generáljon (nem a teljes jelszót)
 5. ✅ **config.json:** Ne módosítsa manuálisan (az Alkalmazás felülete biztosít szerkesztést)
 
-### Folyamatos Biztonsag
+### Folyamatos biztonság
 6. ✅ **Windows-frissítések:** Rendszeres telepítés
 7. ✅ **Antivírus:** Naprakészen tartás és rendszeres vizsgálatok
 8. ✅ **BitLocker:** Engedélyezés, ha Pro/Enterprise vagy Home Device Encryption
@@ -253,12 +237,12 @@ Ha engedélyezi a Google Drive biztonsági másolatot:
 ### Az Alkalmazás Használata
 11. ✅ **Erős Windows-jelszó:** Egyedi, legalább 12 karakteres jelszó
 12. ✅ **Zárolt képernyő:** Munkahely elhagyásakor `Win+L`
-13. ✅ **Fizikai biztonsag:** Ne hagyja felügyelet nélkül a nyitott laptopot
+13. ✅ **Fizikai biztonság:** Ne hagyja felügyelet nélkül a nyitott laptopot
 14. ✅ **Bizalmas helyek:** Ne használja a köztelen Wi-Fi-ket az IMAP szinkronizáláshoz (lehetőleg otthonról)
 
 ---
 
-## 12. Biztonsagi Incidensek és Jelzések
+## 12. Biztonsági incidensek és jelzések
 
 ### 12.1 Ha Gyanítja, hogy az IMAP Jelszó Kompromittálódott
 1. **Azonnal** módosítsa az IMAP-jelszavát (vagy alkalmazásjelszót)
@@ -266,7 +250,7 @@ Ha engedélyezi a Google Drive biztonsági másolatot:
    - https://myaccount.google.com/security
    - Jelszó módosítása
    - App passwords: Az Alkalmazás jelszavát inaktiválja
-3. **Az Alkalmazásban:** Adatkezelés → IMAP hitelesítés törlése és új jelszó megadása
+3. **Az Alkalmazásban:** **Levelezés → Levelező fiókok…** → fiók törlése vagy új jelszó / új Microsoft bejelentkezés, majd Mentés
 
 ### 12.2 Ha Gyanítja, hogy az Adatbázis Sérült vagy Lopott
 1. **Biztonsági másolatból** helyreállít (ha van)
@@ -274,11 +258,10 @@ Ha engedélyezi a Google Drive biztonsági másolatot:
 3. **Antivírus vizsgálat** a teljes rendszerre
 4. **Figyelembe vétele:** Az e-mail szolgáltató naplóiban megnézheti, hogy ki fért hozzá a fiókjához
 
-### 12.3 GitHub Issues-ben Biztonsagi Hibák Bejelentése
-Ha biztonsági sebezhetőséget talál az Alkalmazásban:
-1. **NE nyilvánosítsa** a GitHub-on (nyilvános issue)
-2. **Írjon e-mailt** a fejlesztőnek (privát módon)
-3. **Adja meg** a hiba leírását, a reprodukálási módot és a javasolt javítást
+### 12.3 Biztonsági sebezhetőség jelzése
+Ha biztonsági hibát talál:
+1. **Súgó → Hibabejelentő…** — leírás a GitHub Issues oldalon (érzékeny adat nélkül)
+2. Kritikus esetben kerülje a nyilvános részleteket; csak a reprodukálás lépéseit add meg
 
 ---
 
@@ -290,7 +273,7 @@ Ha biztonsági sebezhetőséget talál az Alkalmazásban:
 | IMAP jelszó titkosítása | ❌ Nincs | Használjon Google App Password-ot |
 | Adatbázis titkosítása | ❌ Nincs | Engedélyezze a BitLocker-t |
 | Fizikai hozzáférés védelem | ⚠️ OS-szint | Erős Windows-jelszó szükséges |
-| Biztonsági másolat | ❌ Nincs (opcionális) | Google Drive vagy manuális export |
+| Biztonsági másolat | ⚠️ Manuális | Fájl → Mentés… (zip a gépre) |
 | Antivírus | ⚠️ Szoftver-függő | Windows Defender vagy más |
 | Windows-frissítések | ⚠️ Szoftver-függő | Hetente legalább egyszer |
 | Lemez titkosítás | ⚠️ Az Ön választása | Pro/Enterprise: BitLocker ajánlott |
@@ -311,9 +294,9 @@ Az Ön felelőssége az Alkalmazás és az adatai biztonsági gyakorlatának meg
 
 ## 15. Kontakt és Támogatás
 
-Biztonsagi kérdéseihez vagy sérülékenységi jelzéseihez:
-- **GitHub Issues:** https://github.com/[owner]/hirlevel-gmail-archivalas/issues
-- **Privát jelzés:** Az Issues lapon választható a biztonsag-bejelentés sablonja
+Biztonsági kérdéseihez vagy sérülékenységi jelzéseihez:
+- **Hibabejelentő a programban:** Súgó → Hibabejelentő…
+- **Web:** https://github.com/Gergely-hub/hirlevel-archivalas/issues
 
 ---
 

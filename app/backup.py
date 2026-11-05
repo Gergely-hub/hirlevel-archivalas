@@ -1,13 +1,11 @@
-"""Helyi biztonsági mentés / visszaállítás (zip) — gépre vagy Google Drive-ra."""
+"""Helyi biztonsági mentés / visszaállítás (zip) — gépre."""
 
 from __future__ import annotations
 
 import sqlite3
 import zipfile
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
-
 from app.paths import CONFIG_PATH, DB_PATH, ensure_data_dir
 
 
@@ -16,13 +14,6 @@ BACKUP_CONFIG_NAME = "config.json"
 BACKUP_META_NAME = "backup_meta.txt"
 BACKUP_PREFIX = "HirlevelKoveto-backup-"
 BACKUP_KEEP_DEFAULT = 8
-
-INTERVAL_DAYS = {
-    "daily": 1,
-    "weekly": 7,
-    "monthly": 30,
-}
-
 
 def default_backup_filename() -> str:
     return f"{BACKUP_PREFIX}{datetime.now():%Y%m%d-%H%M}.zip"
@@ -104,69 +95,6 @@ def prune_old_backups(folder: Path | str, keep: int = BACKUP_KEEP_DEFAULT) -> in
         except OSError:
             pass
     return removed
-
-
-def normalize_backup_interval(raw: object) -> str:
-    key = str(raw or "weekly").strip().lower()
-    return key if key in INTERVAL_DAYS else "weekly"
-
-
-def backup_due(cfg: dict[str, Any], *, now: Optional[datetime] = None) -> bool:
-    """True, ha az automata mentés esedékes."""
-    if not bool(cfg.get("backup_auto")):
-        return False
-    target = str(cfg.get("backup_target") or "local").strip().lower()
-    if target == "gdrive":
-        try:
-            from app.gdrive_backup import is_connected
-
-            if not is_connected():
-                return False
-        except Exception:
-            return False
-    else:
-        folder = str(cfg.get("backup_folder") or "").strip()
-        if not folder or not Path(folder).is_dir():
-            return False
-    interval = normalize_backup_interval(cfg.get("backup_interval"))
-    days = INTERVAL_DAYS[interval]
-    now = now or datetime.now()
-    last_raw = str(cfg.get("backup_last_at") or "").strip()
-    if not last_raw:
-        return True
-    try:
-        last = datetime.fromisoformat(last_raw)
-    except ValueError:
-        return True
-    return now >= last + timedelta(days=days)
-
-
-def run_scheduled_backup(cfg: dict[str, Any]) -> Path:
-    """Automata mentés helyi mappába vagy Google Drive-ra."""
-    import tempfile
-
-    target = str(cfg.get("backup_target") or "local").strip().lower()
-    keep = int(cfg.get("backup_keep") or BACKUP_KEEP_DEFAULT)
-
-    if target == "gdrive":
-        with tempfile.TemporaryDirectory(prefix="hirlevel_bak_") as td:
-            dest = Path(td) / default_backup_filename()
-            out = create_backup_zip(dest)
-            from app.gdrive_backup import upload_backup_zip
-
-            upload_backup_zip(out, keep=keep)
-            cfg["backup_last_at"] = datetime.now().isoformat(timespec="seconds")
-            return out
-
-    folder = Path(str(cfg.get("backup_folder") or "").strip())
-    if not folder.is_dir():
-        raise FileNotFoundError("Nincs érvényes mentési mappa.")
-    dest = folder / default_backup_filename()
-    out = create_backup_zip(dest)
-    prune_old_backups(folder, keep=keep)
-    cfg["backup_last_at"] = datetime.now().isoformat(timespec="seconds")
-    cfg["backup_folder"] = str(folder)
-    return out
 
 
 def restore_backup_zip(zip_path: Path | str) -> None:

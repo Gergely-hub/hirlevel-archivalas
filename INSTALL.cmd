@@ -23,7 +23,7 @@ if errorlevel 1 (
 if not exist config.json (
   copy /y config.example.json config.json >nul
   echo.
-  echo Letrejott a config.json — szerkeszd: levelezo fiok (IMAP) + jelszo.
+  echo Létrejött a config.json — szerkeszd: levelező fiók (IMAP) + jelszó.
 )
 echo.
 echo Kesz. Kovetkezo: szerkeszd a config.json-t, majd START.cmd

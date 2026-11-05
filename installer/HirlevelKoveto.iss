@@ -1,9 +1,10 @@
 ; Hírlevél követő — Inno Setup telepítő
 ; Forrás: a BUILD-EXE.cmd által készített program\ mappa
 
+#include "generated_version.iss"
+
 #define MyAppName "Hírlevél követő"
 #define MyAppNameAscii "HirlevelKoveto"
-#define MyAppVersion "1.0"
 #define MyAppPublisher "Hírlevél követő"
 #define MyAppExeName "HirlevelKoveto.exe"
 #define MyAppUrl ""
