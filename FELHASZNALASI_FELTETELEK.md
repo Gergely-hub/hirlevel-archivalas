@@ -179,7 +179,7 @@ A Feltételek értelmezése és alkalmazása **magyar jog** alá tartozik. **Min
 ## 11. Kapcsolatfelvétel
 
 Kérdéseit vagy panaszait az alábbiakon keresztül nyújthatja be:
-- **Hibabejelentő:** Súgó → Hibabejelentő… ([GitHub Issues](https://github.com/Gergely-hub/hirlevel-archivalas/issues))
+- **Hibabejelentő:** Súgó → Hibabejelentő… ([GitHub Issues](https://github.com/Gergely-hub/hirlevel-koveto/issues))
 
 ---
 
