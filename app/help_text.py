@@ -39,7 +39,7 @@ Levelező fiók
   (Alkalmazásjelszó készítése gomb a fiók űrlapon).
 • Outlook / Hotmail: „Bejelentkezés Microsoft-fiókkal” — a program elmenti a tokent.
 • ProtonMail (proton.me): kísérleti — Proton Mail Bridge kell (127.0.0.1:1143, Bridge jelszó).
-  Nincs garancia; saját fiókon nem ellenőrizve.
+  Nincs garancia.
 • Levelezés → Most ellenőriz — új levelek.
 • Levelezés → Régebbi levelek betöltése… — múltbeli hírlevelek (lassú, ritkán).
 

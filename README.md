@@ -11,14 +11,13 @@ Helyi Windows program hírlevelek IMAP-ről történő archiválásához és olv
 1. Töltsd le a `HirlevelKoveto-…-win64.zip` fájlt.
 2. Csomagold ki bárhova (pl. `D:\Programok\HirlevelKoveto`).
 3. Indítsd a **`HirlevelKoveto.exe`** fájlt.
-4. Ha a Windows **ismeretlen kiadó** figyelmeztet: *További információ* → *Futtatás mégis* (nincs code signing).
+4. Ha a Windows **ismeretlen kiadó** figyelmeztet: *További információ* → *Futtatás mégis*.
 
-Nincs telepítő — csak a Release zip számít hivatalos csomagnak (ne a „Code → Download ZIP” forráscsomagot add a végfelhasználóknak).
+Nincs telepítő: csomagold ki a zipet, majd indítsd a **`HirlevelKoveto.exe`** fájlt.
 
-## Első lépések
+## További információ
 
 - Részletes útmutató: [OLVASD.md](OLVASD.md)
-- Fejlesztői build / release: [RELEASE.md](RELEASE.md)
 - Hibajelzés: a programban **Súgó → Hibabejelentő…**, vagy [GitHub Issues](https://github.com/Gergely-hub/hirlevel-archivalas/issues)
 
 ## Röviden

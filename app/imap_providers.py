@@ -78,7 +78,7 @@ PROVIDERS: list[ImapProvider] = [
             "Kísérleti: csak a Proton Mail Bridge programmal működik (telepítés + futás kötelező).\n"
             "IMAP: 127.0.0.1, port 1143 (Bridge alap). Jelszó: a Bridge által generált jelszó "
             "(nem a proton.me webes jelszó).\n"
-            "Nincs garancia; a fejlesztő saját Proton-fiókon nem tesztelte — visszajelzés örömmel."
+            "Kísérleti funkció — nincs garancia. Visszajelzés örömmel fogadott."
         ),
     ),
     ImapProvider(

@@ -2,9 +2,7 @@
 
 ## Indítás
 
-**Letöltés (GitHub Release):** a **`HirlevelKoveto-…-win64.zip`** csomagot csomagold ki egy mappába (pl. `D:\Programok\HirlevelKoveto`), majd indítsd a **`HirlevelKoveto.exe`** fájlt. Nincs aláírt telepítő — a Windows **ismeretlen kiadó** figyelmeztetésnél: *További információ* → *Futtatás mégis*. A levelek továbbra is a `%LOCALAPPDATA%\HirlevelKoveto` mappában vannak (nem a zip mappájában).
-
-**Fejlesztés:** **INDITAS.cmd**, vagy a `program` mappában az exe, vagy az asztali **Hírlevél követő (Python)** parancsikon.
+**Letöltés:** a **`HirlevelKoveto-…-win64.zip`** csomagot csomagold ki egy mappába (pl. `D:\Programok\HirlevelKoveto`), majd indítsd a **`HirlevelKoveto.exe`** fájlt. Nincs aláírt telepítő — a Windows **ismeretlen kiadó** figyelmeztetésnél: *További információ* → *Futtatás mégis*. A levelek továbbra is a `%LOCALAPPDATA%\HirlevelKoveto` mappában vannak (nem a zip mappájában).
 
 Ha azt írja, hogy már fut: nézd a **tálcát** (az óra mellett). Ott megnyithatod; kilépés: tálca menü → **Kilépés**.
 
@@ -57,14 +55,12 @@ A zip tartalmazhatja a levelező beállításokat is — **ne oszd meg** másokk
 Ellenőrizd a fiókot és az alkalmazásjelszót. **Most ellenőriz**, vagy **Levelezés → Régebbi levelek betöltése…** (első alkalommal).
 
 **Outlook?**  
-**Bejelentkezés Microsoft-fiókkal** — sima jelszó általában nem elég. A program alapból beépített OAuth client ID-t használ; haladóknak opcionális saját Azure app: `config.json` → `microsoft_oauth_client_id`.
-
-**Release / build:** lásd [RELEASE.md](RELEASE.md) (zip készítés, GitHub Release, füstteszt).
+**Bejelentkezés Microsoft-fiókkal** — sima jelszó általában nem elég.
 
 **ProtonMail?**  
 **Kísérleti (Bridge):** telepítsd és indítsd a [Proton Mail Bridge](https://proton.me/mail/bridge) programot.  
 A fiók ablakban válaszd: **ProtonMail — kísérleti (Bridge)** (`127.0.0.1`, port `1143`, Bridge által generált jelszó).  
-Nincs garancia; a fejlesztő saját Proton-fiókon nem tesztelte — működő vagy hibás visszajelzés hasznos.
+Kísérleti funkció — nincs garancia; visszajelzés örömmel fogadott.
 
 **Az olvasó üres?**  
 Próbáld a buborékon a **Teljes szöveg** gombot, vagy **Régebbi levelek betöltése…**.
@@ -78,7 +74,7 @@ Próbáld a buborékon a **Teljes szöveg** gombot, vagy **Régebbi levelek bet�
 
 A programban: **Súgó → Jogi Dokumentumok Központ…** (Adatkezelés, Biztonság, Feltételek, Licenc fülök).
 
-Forrás / fejlesztői mappában ugyanezek **HTML** és **MD** fájlokban is (pl. `Hivatalos` mappa az exe mellett).
+Ugyanezek az exe melletti **Hivatalos** mappában **HTML** formában is elérhetők.
 
 **Röviden:** Helyi feldolgozás, nincs telemetria. Erős Windows-jelszó és BitLocker ajánlott; Gmailnál alkalmazásjelszó.
 
