@@ -2,6 +2,8 @@
 
 Helyi Windows program hírlevelek IMAP-ről történő archiválásához és olvasásához. A levelek és beállítások a gépeden maradnak (`%LOCALAPPDATA%\HirlevelKoveto`).
 
+![Hírlevél követő — hírlevelek listája és levél olvasó](docs/kepernyokep-felulet.png)
+
 ## Letöltés
 
 **[GitHub Releases — legújabb win64 zip](https://github.com/Gergely-hub/hirlevel-archivalas/releases/latest)**
