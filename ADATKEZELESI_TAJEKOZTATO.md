@@ -153,7 +153,7 @@ A fejlesztő jogosult ezt az adatkezelési tájékoztatót bármikor módosítan
 
 Ha kérdése van az adatkezelésről vagy szeretné gyakorolni fenti jogait, vegye fel a kapcsolatot:
 
-- **Hibabejelentő / kérdés:** **Súgó → Hibabejelentő…** a programban ([GitHub Issues](https://github.com/Gergely-hub/hirlevel-koveto/issues))
+- **Hibabejelentő / kérdés:** **Súgó → Hibabejelentő…** a programban ([GitHub Issues](https://github.com/Gergely-hub/hirlevel-archivalas/issues))
 - **Helyi Adatvédelmi Hatóság (Magyarország):** [Nemzeti Adatvédelmi és Információszabadság Hatóság (NAIH)](https://www.naih.hu/)
 
 ---

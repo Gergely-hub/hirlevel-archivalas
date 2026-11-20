@@ -1549,7 +1549,7 @@ class App(ctk.CTk):
 
     def _open_github_issues(self) -> None:
         """GitHub Issues megnyitása az alapértelmezett böngészőben."""
-        webbrowser.open("https://github.com/Gergely-hub/hirlevel-koveto/issues")
+        webbrowser.open("https://github.com/Gergely-hub/hirlevel-archivalas/issues")
 
     def _backup_initial_dir(self) -> str:
         cfg = load_config()

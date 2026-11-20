@@ -134,7 +134,7 @@ C:\Users\[UserName]\AppData\Local\HirlevelKoveto\
 ## 6. Malware és Vírusvédelem
 
 ### 6.1 Alkalmazás Biztonság
-- Az Alkalmazás **előre lefordított win64 zip csomagként** érhető el a GitHub Releases oldalon
+- Az Alkalmazás **nyílt forráskódú** (GitHub-on elérhető)
 - Az **Ön ellenőrizheti** a teljes forráskódot – nincs rejtett kód
 - Az EXE-fájl a forráskódból készül (PyInstaller)
 
@@ -206,7 +206,7 @@ Az Ön által letöltött e-mailek (hírlevelek) tartalmazhatnak:
 
 ### 10.1 Frissítések Keresése
 - Az Alkalmazás **nem ellenőrzi automatikusan** az új verziókat
-- Az Ön felelőssége, hogy időnként ellenőrizze a GitHub-on: https://github.com/Gergely-hub/hirlevel-koveto/releases
+- Az Ön felelőssége, hogy időnként ellenőrizze a GitHub-on: https://github.com/Gergely-hub/hirlevel-archivalas/releases
 - Biztonsági frissítések fontosak — ne hagyja figyelmen kívül
 
 ### 10.2 Frissítési biztonság
@@ -296,7 +296,7 @@ Az Ön felelőssége az Alkalmazás és az adatai biztonsági gyakorlatának meg
 
 Biztonsági kérdéseihez vagy sérülékenységi jelzéseihez:
 - **Hibabejelentő a programban:** Súgó → Hibabejelentő…
-- **Web:** https://github.com/Gergely-hub/hirlevel-koveto/issues
+- **Web:** https://github.com/Gergely-hub/hirlevel-archivalas/issues
 
 ---
 

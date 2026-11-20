@@ -8,12 +8,11 @@
 
 Alternatíva csak exe: **`BUILD-EXE.cmd`**. Telepítő (opcionális, aláírás nélkül): **`BUILD-INSTALLER.cmd`**.
 
-## GitHub Release (nyilvános letöltés)
+## GitHub Release
 
-- **Repó:** `Gergely-hub/hirlevel-koveto` (csak README, OLVASD, kép + zip — nincs app forrás).
-- Melléklet: **`dist_release\HirlevelKoveto-1.0.x-win64.zip`**
-- Példa: `gh release upload v1.0.5 dist_release\HirlevelKoveto-1.0.5-win64.zip --repo Gergely-hub/hirlevel-koveto --clobber`
-- Forráskód: **privát** `hirlevel-archivalas` (ez a mappa).
+- Melléklet: **`dist_release\HirlevelKoveto-1.0.x-win64.zip`** (egy fájl).
+- Forrás: tag **`v1.0.x`** ugyanarra a commitra, amiről buildeltél.
+- Másold be / frissítsd a **Release notes** sablont (lent).
 
 ## Letöltőnek (rövid szöveg Release-hez)
 
@@ -61,4 +60,4 @@ Alternatíva csak exe: **`BUILD-EXE.cmd`**. Telepítő (opcionális, aláírás 
 - [ ] Commit + push `master`
 - [ ] Tag `v{VERSION_LABEL}` ugyanarra a commitra
 - [ ] GitHub Release: zip asset + notes (fenti sablon)
-- [ ] Közzétételi link: `https://github.com/Gergely-hub/hirlevel-koveto/releases/latest` (nyilvános, forrás nélkül)
+- [ ] Közzétételi link: `https://github.com/Gergely-hub/hirlevel-archivalas/releases/latest`
