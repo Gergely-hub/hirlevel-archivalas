@@ -76,6 +76,6 @@ A programban: **Súgó → Jogi Dokumentumok Központ…** (Adatkezelés, Bizton
 
 Ugyanezek az exe melletti **Hivatalos** mappában **HTML** formában is elérhetők.
 
-**Röviden:** Helyi feldolgozás, nincs telemetria. Erős Windows-jelszó és BitLocker ajánlott; Gmailnál alkalmazásjelszó.
+**Röviden:** A levelek és beállítások a gépeden maradnak. Erős Windows-jelszó és BitLocker ajánlott; Gmailnál alkalmazásjelszó.
 
 **Hibajelzés:** **Súgó → Hibabejelentő…**

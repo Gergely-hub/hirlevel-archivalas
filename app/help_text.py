@@ -80,7 +80,7 @@ A beállításokban lehetnek a levelező fiók adatai (például alkalmazásjels
 
 Gépre mentés
 A zip a választott mappába kerül (Mentés… az utolsó mappába, Mentés másként… bárhova).
-Ezt a mappát te őrzöd (lemez, USB, stb.). Nincs felhőmentés a programban.
+Ezt a mappát te őrzöd (lemez, USB, stb.). A program nem tárol adatot online.
 
 Visszaállítás
 Fájl → Backup visszaállítás… — zip kiválasztása, majd felülírja a jelenlegi archívumot.
@@ -96,7 +96,7 @@ FONTOS_TUDNIVALOK = """Üdvözöl a Hírlevél követő!
 
 Helyi program
 • A levelek és beállítások a gépeden maradnak (AppData\\Local\\HirlevelKoveto).
-• Nincs telemetria, nincs központi szerver — csak a levelező szerverrel beszél (IMAP).
+• A program a levelező szerverről tölt le (IMAP); központi szolgáltatás nincs.
 
 Biztonság
 • A levelező jelszó vagy Outlook-token a config.json fájlban van, titkosítás nélkül.
@@ -116,7 +116,7 @@ ADATKEZELES = """Adatkezelés röviden
 Helyi feldolgozás
 • A levelek és beállítások az AppData\\Local\\HirlevelKoveto mappában (nem az interneten).
 • A program a levelező szerverről olvassa a hírleveleket (titkosított kapcsolat).
-• Nincs telemetria, nincs központi szerver.
+• A program a levelező szerverről tölt; adataid a gépeden maradnak.
 
 Adataid
 • Levelező jelszó / Outlook token: config.json, NEM titkosítva
@@ -139,7 +139,7 @@ Súgó → Jogi Dokumentumok Központ… → Adatkezelés fül
 ADATVEDELEM_TELJES = """GDPR és Adatvédelem
 
 Ez az alkalmazás helyi feldolgozást nyújt.
-Minden adat az Ön gépén marad. Nincs fejlesztői szerver, nincs telemetria.
+Minden adat az Ön gépén marad. A program a készítő felé nem küld használati adatot.
 
 Adatkezelő: ÖN (saját gépén)
 Feldolgozandó adatok: levelező jelszó/token, levelek, beállítások
