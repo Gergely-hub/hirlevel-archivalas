@@ -19,7 +19,7 @@ Alternatíva csak exe: **`BUILD-EXE.cmd`**. Telepítő (opcionális, aláírás 
 - Csomagold ki a zipet bárhova, indítsd a **HirlevelKoveto.exe** fájlt.
 - Windows **ismeretlen kiadó** figyelmeztetés: *További információ* → *Futtatás mégis* (nincs code signing).
 - Levelek és beállítások: **`%LOCALAPPDATA%\HirlevelKoveto`** — a zip mappa mozgatható, az adatok maradnak.
-- **ProtonMail:** hivatalosan nem támogatott.
+- **ProtonMail:** kísérleti — Bridge kell (`127.0.0.1:1143`); nincs garancia.
 - **Outlook:** *Bejelentkezés Microsoft-fiókkal* a fiók ablakban (beépített OAuth client ID; opcionális saját ID: `config.json` → `microsoft_oauth_client_id`).
 
 ## Füstteszt (build után, ~15 perc)
@@ -32,8 +32,9 @@ Alternatíva csak exe: **`BUILD-EXE.cmd`**. Telepítő (opcionális, aláírás 
 
 ## Aktuális build (fejlesztői gép)
 
-- **Verzió:** `1.0.3` (build **3**) — `program\HirlevelKoveto.exe --version`
-- **Zip:** `dist_release\HirlevelKoveto-1.0.3-win64.zip`
+- **Verzió:** `1.0.5` (build **5**) — `program\HirlevelKoveto.exe --version`
+- **Zip:** `dist_release\HirlevelKoveto-1.0.5-win64.zip`
+- Build parancs (egy futás): `QUICK-BUILD.cmd` vagy asztali `BUILD-HIRLEVEL.cmd` (Norton: `NORTON-BUILD.md`)
 
 ## Release notes sablon
 
@@ -45,8 +46,18 @@ Alternatíva csak exe: **`BUILD-EXE.cmd`**. Telepítő (opcionális, aláírás 
 ### Fontos
 - Nincs aláírt telepítő; Windows figyelmeztethet ismeretlen kiadóra.
 - Adatok: %LOCALAPPDATA%\HirlevelKoveto
-- ProtonMail nem támogatott.
+- ProtonMail kísérleti (Bridge); nincs garancia.
 
 ### Változások
-- …
+- Proton Mail — kísérleti (Bridge) profil; localhost IMAP STARTTLS (Bridge 1143)
+- README + OLVASD.md a zip csomagban; GitHub Releases letöltési link
 ```
+
+## Közzététel (checklist)
+
+- [ ] `BUILD-ZIP.cmd` → friss zip
+- [ ] Füstteszt (`RELEASE.md` „Füstteszt”)
+- [ ] Commit + push `master`
+- [ ] Tag `v{VERSION_LABEL}` ugyanarra a commitra
+- [ ] GitHub Release: zip asset + notes (fenti sablon)
+- [ ] Közzétételi link: `https://github.com/Gergely-hub/hirlevel-archivalas/releases/latest`

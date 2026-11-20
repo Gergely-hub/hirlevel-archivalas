@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import shutil
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 PROGRAM = ROOT / "program"
 OUT = ROOT / "dist_release"
 

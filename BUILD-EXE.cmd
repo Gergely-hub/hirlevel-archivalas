@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul 2>&1
 cd /d "%~dp0"
 set "PY="
 REM Eloszor a 3.13 (biztos customtkinter) — ne a PATH-on levo 3.14
@@ -92,6 +93,7 @@ if exist "BIZTONSAG_ES_ADATVEDELEM.html" copy /y "BIZTONSAG_ES_ADATVEDELEM.html"
 if exist "LICENSE.html" copy /y "LICENSE.html" "_build_out\HirlevelKoveto\Hivatalos\LICENSE.html" >nul
 if exist "ROLUNK.html" copy /y "ROLUNK.html" "_build_out\HirlevelKoveto\Hivatalos\ROLUNK.html" >nul
 if exist "HASZNALATI_UTMUTATO.html" copy /y "HASZNALATI_UTMUTATO.html" "_build_out\HirlevelKoveto\Hivatalos\HASZNALATI_UTMUTATO.html" >nul
+if exist "OLVASD.md" copy /y "OLVASD.md" "_build_out\HirlevelKoveto\OLVASD.md" >nul
 
 if exist "program" rmdir /s /q "program"
 if exist "program" (

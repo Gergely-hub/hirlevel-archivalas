@@ -16,7 +16,7 @@ class ImapProvider:
     auth: str = "password"
 
 
-# Thunderbird-szerű előre kitöltött IMAP profilok (ProtonMail: nem támogatott)
+# Thunderbird-szerű előre kitöltött IMAP profilok
 PROVIDERS: list[ImapProvider] = [
     ImapProvider(
         key="gmail",
@@ -69,13 +69,26 @@ PROVIDERS: list[ImapProvider] = [
         hint="Vipmail fiók jelszava (IMAP).",
     ),
     ImapProvider(
+        key="proton_bridge",
+        label="ProtonMail — kísérleti (Bridge)",
+        host="127.0.0.1",
+        port=1143,
+        help_url="https://proton.me/mail/bridge",
+        hint=(
+            "Kísérleti: csak a Proton Mail Bridge programmal működik (telepítés + futás kötelező).\n"
+            "IMAP: 127.0.0.1, port 1143 (Bridge alap). Jelszó: a Bridge által generált jelszó "
+            "(nem a proton.me webes jelszó).\n"
+            "Nincs garancia; a fejlesztő saját Proton-fiókon nem tesztelte — visszajelzés örömmel."
+        ),
+    ),
+    ImapProvider(
         key="custom",
         label="Egyéni / más szolgáltató",
         host="",
         help_url="https://support.mozilla.org/hu/kb/automatic-account-configuration",
         hint=(
             "Add meg a szolgáltató IMAP szerverét (host + port, általában 993).\n"
-            "ProtonMail (proton.me, protonmail.com) hivatalosan nem támogatott."
+            "Protonhoz ne ezt válaszd — használd a „ProtonMail — kísérleti (Bridge)” profilt."
         ),
     ),
 ]
@@ -104,6 +117,9 @@ _DOMAIN_HINTS: dict[str, str] = {
     "freemail.hu": "freemail",
     "citromail.hu": "citromail",
     "vipmail.hu": "vipmail",
+    "proton.me": "proton_bridge",
+    "protonmail.com": "proton_bridge",
+    "pm.me": "proton_bridge",
 }
 
 

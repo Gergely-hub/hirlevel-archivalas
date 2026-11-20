@@ -4,6 +4,7 @@ import email
 import html as html_lib
 import imaplib
 import re
+import ssl
 import time
 from datetime import datetime
 from email.header import decode_header, make_header
@@ -37,6 +38,39 @@ def _emit(progress: ProgressCb | None, msg: str) -> None:
         progress(msg)
 
 
+def _is_local_imap_host(host: str) -> bool:
+    h = (host or "").strip().lower().strip("[]")
+    return h in ("127.0.0.1", "localhost", "::1")
+
+
+def _local_imap_ssl_context() -> ssl.SSLContext:
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
+def _imap_connect(host: str, port: int, *, timeout: int = 30) -> imaplib.IMAP4:
+    """IMAP kapcsolat. Proton Bridge (localhost): először STARTTLS, majd implicit SSL."""
+    host = (host or "").strip()
+    port = int(port or 993)
+    if not _is_local_imap_host(host):
+        return imaplib.IMAP4_SSL(host, port, timeout=timeout)
+    ctx = _local_imap_ssl_context()
+    last_errors: list[str] = []
+    try:
+        mail = imaplib.IMAP4(host, port, timeout=timeout)
+        mail.starttls(ssl_context=ctx)
+        return mail
+    except Exception as exc:
+        last_errors.append(f"STARTTLS: {exc}")
+    try:
+        return imaplib.IMAP4_SSL(host, port, timeout=timeout, ssl_context=ctx)
+    except Exception as exc:
+        last_errors.append(f"SSL: {exc}")
+    raise OSError("; ".join(last_errors))
+
+
 def _oauth_access_token(acc: Account) -> str | None:
     if acc.auth_method != "oauth2":
         return None
@@ -57,7 +91,7 @@ def _oauth_access_token(acc: Account) -> str | None:
     return tok or None
 
 
-def _imap_login(mail: imaplib.IMAP4_SSL, acc: Account, progress: ProgressCb | None) -> None:
+def _imap_login(mail: imaplib.IMAP4, acc: Account, progress: ProgressCb | None) -> None:
     if acc.auth_method == "oauth2":
         token = _oauth_access_token(acc)
         if not token:
@@ -78,7 +112,7 @@ def test_imap_connection(acc: Account) -> tuple[bool, str]:
     host = (acc.imap_host or "").strip()
     port = int(acc.imap_port or 993)
     try:
-        mail = imaplib.IMAP4_SSL(host, port, timeout=30)
+        mail = _imap_connect(host, port, timeout=30)
         _imap_login(mail, acc, None)
         try:
             mail.logout()
@@ -99,6 +133,13 @@ def _login_error_message(acc: Account, exc: BaseException) -> str:
         return (
             f"{acc.label}: Outlook nem enged sima jelszót (Basic auth tiltva). "
             "Válaszd az OAuth2 módot → Microsoft OAuth bejelentkezés."
+        )
+    host = (acc.imap_host or "").strip()
+    if _is_local_imap_host(host) and ("bad_length" in low or "wrong version" in low):
+        return (
+            f"{acc.label}: Proton Bridge? A Bridge alapból STARTTLS-t használ a 1143-as porton. "
+            "Bridge fusson; Bridge jelszó; ha a Bridge SSL módban van, port lehet 993. "
+            f"Részlet: {raw[:80]}"
         )
     return f"{acc.label}: bejelentkezés sikertelen — {raw[:120]}"
 
@@ -518,7 +559,7 @@ def _fetch_one_account(
     try:
         _emit(progress, f"🔌 Kapcsolódás: {acc.imap_host}:{acc.imap_port} ({acc.auth_method})")
 
-        mail = imaplib.IMAP4_SSL(acc.imap_host, int(acc.imap_port or 993), timeout=45)
+        mail = _imap_connect(acc.imap_host, int(acc.imap_port or 993), timeout=45)
         _imap_login(mail, acc, progress)
         _emit(progress, f"✅ Bejelentkezés OK: {acc.label}")
     except imaplib.IMAP4.error as exc:
@@ -696,7 +737,7 @@ def _fetch_one_source_on_account(
         f"forrás={src.name} FROM={src.email!r}"
     )
     try:
-        mail = imaplib.IMAP4_SSL(acc.imap_host, int(acc.imap_port or 993), timeout=45)
+        mail = _imap_connect(acc.imap_host, int(acc.imap_port or 993), timeout=45)
         _imap_login(mail, acc, progress)
         sync_debug.log(f"{acc.label}: bejelentkezés OK")
     except Exception as exc:
@@ -860,7 +901,7 @@ def refresh_one_message_html(msg_id: int) -> bool:
         imap_uid_hint = parts[1]
 
     try:
-        mail = imaplib.IMAP4_SSL(acc.imap_host, int(acc.imap_port or 993), timeout=45)
+        mail = _imap_connect(acc.imap_host, int(acc.imap_port or 993), timeout=45)
         _imap_login(mail, acc, None)
     except Exception:
         return False

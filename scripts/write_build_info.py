@@ -47,7 +47,7 @@ VERSION_LABEL = "{version_full}"
         encoding="utf-8",
     )
 
-    print(f"build {build_no} ({stamp}) → {version_full}")
+    print(f"build {build_no} ({stamp}) -> {version_full}")
 
 
 if __name__ == "__main__":

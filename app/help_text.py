@@ -33,11 +33,13 @@ SÚGÓ_ROVID = """Indítás
 Levelező fiók
 • Levelezés → Levelező fiókok… — szolgáltató (Gmail, Outlook, Yahoo, iCloud,
   Freemail, Citromail, Vipmail) vagy Egyéni / más szolgáltató.
+  Proton: kísérleti (Bridge) profil — lásd lent.
 • Több fiók is felvehető; a „Most ellenőriz” mindegyiken végigmegy.
 • Gmail, Yahoo, iCloud, magyar szolgáltatók: jelszó vagy alkalmazásjelszó
   (Alkalmazásjelszó készítése gomb a fiók űrlapon).
 • Outlook / Hotmail: „Bejelentkezés Microsoft-fiókkal” — a program elmenti a tokent.
-• ProtonMail (proton.me stb.) hivatalosan nem támogatott.
+• ProtonMail (proton.me): kísérleti — Proton Mail Bridge kell (127.0.0.1:1143, Bridge jelszó).
+  Nincs garancia; saját fiókon nem ellenőrizve.
 • Levelezés → Most ellenőriz — új levelek.
 • Levelezés → Régebbi levelek betöltése… — múltbeli hírlevelek (lassú, ritkán).
 

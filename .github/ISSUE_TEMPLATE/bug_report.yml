@@ -4,7 +4,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Köszönjük a jelzést. **ProtonMail** hivatalosan nem támogatott — Bridge / egyéni IMAP esetén a jelzést lezárjuk scope miatt.
+        Köszönjük a jelzést. **ProtonMail** csak **kísérleti (Bridge)** — ha Bridge fut és a Bridge jelszót használod, a hibajelzést megvizsgáljuk, de nincs garancia.
 
   - type: input
     id: version
@@ -26,7 +26,7 @@ body:
         - iCloud
         - Freemail / Citromail / Vipmail
         - Egyéni IMAP
-        - ProtonMail (nem támogatott)
+        - ProtonMail — kísérleti (Bridge)
         - Egyéb / nincs fiók
     validations:
       required: true

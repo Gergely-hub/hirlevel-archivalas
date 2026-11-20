@@ -17,7 +17,7 @@ Az ablak **X** gombja nem állítja le a programot — a tálcán tovább fut. T
 1. **Levelezés → Levelező fiókok…**  
    Válassz szolgáltatót (Gmail, Outlook, Yahoo, iCloud, Freemail, Citromail, Vipmail)
    vagy **Egyéni / más szolgáltató**, add meg az e-mailt és a jelszót / alkalmazásjelszót.  
-   Több fiók is felvehető. **ProtonMail nem támogatott.**
+   Több fiók is felvehető. **ProtonMail:** opcionálisan **kísérleti (Bridge)** profil — lásd lent.
 2. **Most ellenőriz** — behúzza az új hírleveleket (minden beállított fiókról).
 3. Bal oldalon **+ Új hírlevél** — feladó e-mail címe (forrás).
 
@@ -62,7 +62,9 @@ Ellenőrizd a fiókot és az alkalmazásjelszót. **Most ellenőriz**, vagy **Le
 **Release / build:** lásd [RELEASE.md](RELEASE.md) (zip készítés, GitHub Release, füstteszt).
 
 **ProtonMail?**  
-Hivatalosan **nem támogatott** — nincs garantált működés, hibajelzést ehhez nem kezelünk.
+**Kísérleti (Bridge):** telepítsd és indítsd a [Proton Mail Bridge](https://proton.me/mail/bridge) programot.  
+A fiók ablakban válaszd: **ProtonMail — kísérleti (Bridge)** (`127.0.0.1`, port `1143`, Bridge által generált jelszó).  
+Nincs garancia; a fejlesztő saját Proton-fiókon nem tesztelte — működő vagy hibás visszajelzés hasznos.
 
 **Az olvasó üres?**  
 Próbáld a buborékon a **Teljes szöveg** gombot, vagy **Régebbi levelek betöltése…**.

@@ -206,7 +206,7 @@ Az Ön által letöltött e-mailek (hírlevelek) tartalmazhatnak:
 
 ### 10.1 Frissítések Keresése
 - Az Alkalmazás **nem ellenőrzi automatikusan** az új verziókat
-- Az Ön felelőssége, hogy időnként ellenőrizze a GitHub-on: https://github.com/[owner]/hirlevel-gmail-archivalas
+- Az Ön felelőssége, hogy időnként ellenőrizze a GitHub-on: https://github.com/Gergely-hub/hirlevel-archivalas/releases
 - Biztonsági frissítések fontosak — ne hagyja figyelmen kívül
 
 ### 10.2 Frissítési biztonság
