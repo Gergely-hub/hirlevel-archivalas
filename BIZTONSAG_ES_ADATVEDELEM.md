@@ -134,7 +134,7 @@ C:\Users\[UserName]\AppData\Local\HirlevelKoveto\
 ## 6. Malware és Vírusvédelem
 
 ### 6.1 Alkalmazás Biztonság
-- Az Alkalmazás **előre lefordított csomagként** érhető el (win64 zip); a forráskód nem közzétett
+- Az Alkalmazás **előre lefordított win64 zip csomagként** érhető el a GitHub Releases oldalon
 - Az **Ön ellenőrizheti** a teljes forráskódot – nincs rejtett kód
 - Az EXE-fájl a forráskódból készül (PyInstaller)
 
